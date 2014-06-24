@@ -553,7 +553,7 @@ function updateConvItems(mode,data) {
 	//		$(this).addClass('divmore');
 	//	}					
 	//});
-
+	MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
 }
 
 
@@ -581,6 +581,7 @@ function updateConvItems(mode,data) {
 			livetime = setTimeout(liveUpdate, 10000);
 			return;
 		}
+
 		if(livetime != null)
 			livetime = null;
 
