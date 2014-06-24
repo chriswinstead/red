@@ -1,6 +1,26 @@
 <div id="profile-content-wrapper" class="generic-content-wrapper">
 <h2>{{$title}}</h2>
 
+{{if $profile.canlike || $profile.like_count}}
+<div id="profile-like-wrapper">
+{{if $profile.canlike}}
+	<button type="button" class="btn btn-default btn-sm" onclick="doprofilelike('profile/' + '{{$profile.profile_guid}}','like'); return false;" title="{{$profile.likethis}}" >
+	<i class="icon-thumbs-up-alt" title="{{$profile.likethis}}"></i>
+	</button>
+{{/if}}
+
+
+{{if $profile.like_count}}
+<div class="btn-group">
+<button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" id="profile-like">{{$profile.like_count}} {{$profile.like_button_label}}</button>
+{{if $profile.likers}}
+<ul class="dropdown-menu" role="menu" aria-labelledby="profile-like">{{foreach $profile.likers as $liker}}<li role="presentation"><a href="{{$liker.url}}">{{$liker.name}}</a></li>{{/foreach}}</ul>
+{{/if}}
+</div>
+{{/if}}
+</div>
+{{/if}}
+
 <dl id="aprofile-fullname" class="aprofile">
  <dt>{{$profile.fullname.0}}</dt>
  <dd>{{$profile.fullname.1}}</dd>
@@ -180,6 +200,19 @@
 {{foreach $items as $item}}
 <li>{{if $item.img}}<img src="{{$item.img}}" width="100" height="100" alt="{{$item.term}}" />{{/if}}
 <a href="{{$item.url}}" >{{$item.term}}</a>
+{{if $profile.canlike}}<br />
+<button type="button" class="btn btn-default btn-sm" onclick="doprofilelike('thing/' + '{{$item.term_hash}}','like'); return false;" title="{{$likethis}}" >
+<i class="icon-thumbs-up-alt" title="{{$likethis}}"></i>
+</button>
+{{/if}}
+{{if $item.like_count}}
+<div class="btn-group">
+<button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" id="thing-like-{{$item.term_hash}}">{{$item.like_count}} {{$item.like_label}}</button>
+{{if $item.likes}}
+<ul class="dropdown-menu" role="menu" aria-labelledby="thing-like-{{$item.term_hash}}">{{foreach $item.likes as $liker}}<li role="presentation"><a href="{{$liker.xchan_url}}">{{$liker.xchan_name}}</a></li>{{/foreach}}</ul>
+{{/if}}
+</div>
+{{/if}}
 </li>
 {{/foreach}}
 </ul>

@@ -951,6 +951,25 @@ function advanced_profile(&$a) {
 		
 		if($a->profile['gender']) $profile['gender'] = array( t('Gender:'),  $a->profile['gender'] );
 		
+		$ob_hash = get_observer_hash();
+		if($ob_hash && perm_is_allowed($a->profile['profile_uid'],$ob_hash,'post_wall')) {
+			$profile['canlike'] = true;
+			$profile['likethis'] = t('Like this channel');
+			$profile['profile_guid'] = $a->profile['profile_guid'];
+		} 
+
+		$likers = q("select liker, xchan.*  from likes left join xchan on liker = xchan_hash where channel_id = %d and target_type = '%s' and verb = '%s'",
+			intval($a->profile['profile_uid']),
+			dbesc(ACTIVITY_OBJ_PROFILE),
+			dbesc(ACTIVITY_LIKE)
+		);
+		$profile['likers'] = array();
+		$profile['like_count'] = count($likers);
+		$profile['like_button_label'] = tt('Like','Likes',$profile['like_count'],'noun');
+		if($likers) {
+			foreach($likers as $l)
+				$profile['likers'][] = array('name' => $l['xchan_name'],'url' => zid($l['xchan_url']));
+		}
 
 		if(($a->profile['dob']) && ($a->profile['dob'] != '0000-00-00')) {
 
@@ -1025,10 +1044,12 @@ function advanced_profile(&$a) {
 
 		$things = get_things($a->profile['profile_guid'],$a->profile['profile_uid']);
 
-		logger('mod_profile: things: ' . print_r($things,true), LOGGER_DATA); 
+//		logger('mod_profile: things: ' . print_r($things,true), LOGGER_DATA); 
 
         return replace_macros($tpl, array(
             '$title' => t('Profile'),
+			'$canlike' => (($profile['canlike'])? true : false),
+			'$likethis' => t('Like this thing'),
             '$profile' => $profile,
 			'$things' => $things
         ));

@@ -1,6 +1,6 @@
 <?php
 
-define( 'UPDATE_VERSION' , 1112 );
+define( 'UPDATE_VERSION' , 1115 );
 
 /**
  *
@@ -1251,3 +1251,43 @@ function update_r1111() {
 		return UPDATE_SUCCESS;
 	return UPDATE_FAILED;
 }
+
+function update_r1112() {
+	$r = q("CREATE TABLE IF NOT EXISTS `likes` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `liker` char(128) NOT NULL DEFAULT '',
+  `likee` char(128) NOT NULL DEFAULT '',
+  `iid` int(11) NOT NULL DEFAULT '0',
+  `verb` char(255) NOT NULL DEFAULT '',
+  `target_type` char(255) NOT NULL DEFAULT '',
+  `target` mediumtext NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `liker` (`liker`),
+  KEY `likee` (`likee`),
+  KEY `iid` (`iid`),
+  KEY `verb` (`verb`),
+  KEY `target_type` (`target_type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8");
+
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1113() {
+	$r = q("ALTER TABLE `likes` ADD `channel_id` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `id` ,
+CHANGE `iid` `iid` INT( 10 ) UNSIGNED NOT NULL DEFAULT '0',
+ADD INDEX ( `channel_id` )");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1114() {
+	$r = q("ALTER TABLE `likes` ADD `target_id` CHAR( 128 ) NOT NULL DEFAULT '' AFTER `target_type` ,
+ADD INDEX ( `target_id` )");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+	
