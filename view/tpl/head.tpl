@@ -24,7 +24,6 @@
 
 
 <script>
-
 	var updateInterval = {{$update_interval}};
 	var localUser = {{if $local_user}}{{$local_user}}{{else}}false{{/if}};
 	var zid = {{if $zid}}'{{$zid}}'{{else}}null{{/if}};

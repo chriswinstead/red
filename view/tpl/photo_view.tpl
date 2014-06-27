@@ -9,7 +9,12 @@
 </div>
 
 {{if $prevlink}}<div id="photo-prev-link"><a href="{{$prevlink.0}}"><i class="icon-backward photo-icons"></i></div>{{/if}}
-<div id="photo-photo"><a href="{{$photo.href}}" title="{{$photo.title}}"; return false;" ><img style="max-width: 100%;" src="{{$photo.src}}" /></a></div>
+<div id="Gallery">
+<div class="gallery-row">
+<div class="gallery-item"><a id="single_image" href="{{$photo.href}}" title="{{$photo.title}}"><img style="max-width: 100%;" src="{{$photo.src}}" /></a></div>
+</div>
+</div>
+
 {{if $nextlink}}<div id="photo-next-link"><a href="{{$nextlink.0}}"><i class="icon-forward photo-icons"></i></a></div>{{/if}}
 <div id="photo-photo-end"></div>
 <div id="photo-caption">{{$desc}}</div>

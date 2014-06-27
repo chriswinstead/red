@@ -7,6 +7,7 @@ head_add_css('library/tiptip/tipTip.css');
 head_add_css('library/jgrowl/jquery.jgrowl.css');
 head_add_css('library/jslider/css/jslider.css');
 head_add_css('library/colorbox/colorbox.css');
+head_add_css('library/photoswipe/photoswipe.css');
 
 head_add_css('view/css/conversation.css');
 head_add_css('view/css/widgets.css');
@@ -37,6 +38,8 @@ head_add_js('crypto.js');
 head_add_js('library/jslider/bin/jquery.slider.min.js');
 head_add_js('docready.js');
 head_add_js('library/colorbox/jquery.colorbox-min.js');
+head_add_js('library/photoswipe/lib/simple-inheritance.min.js');
+head_add_js('library/photoswipe/code-photoswipe-1.0.11.min.js');
 
 /**
  * Those who require this feature will know what to do with it.
