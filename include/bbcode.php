@@ -3,7 +3,7 @@
 require_once("include/oembed.php");
 require_once('include/event.php');
 require_once('include/zot.php');
-
+require_once('include/hubloc.php');
 
 function tryoembed($match) {
 	$url = ((count($match)==2)?$match[1]:$match[2]);
@@ -19,15 +19,7 @@ function tryoembed($match) {
 function tryzrlaudio($match) {
 
 	$link = $match[1];
-	$m = @parse_url($link);
-	$zrl = false;
-	if($m['host']) {
-		$r = q("select hubloc_url from hubloc where hubloc_host = '%s' limit 1",
-			dbesc($m['host'])
-		);
-		if($r)
-			$zrl = true;
-	}
+	$zrl = is_matrix_url($link);
 	if($zrl)
 		$link = zid($link);
 	return	'<audio src="' .  $link . '" controls="controls" ><a href="' . $link . '">' . $link . '</a></audio>';
@@ -35,15 +27,7 @@ function tryzrlaudio($match) {
 
 function tryzrlvideo($match) {
 	$link = $match[1];
-	$m = @parse_url($link);
-	$zrl = false;
-	if($m['host']) {
-		$r = q("select hubloc_url from hubloc where hubloc_host = '%s' limit 1",
-			dbesc($m['host'])
-		);
-		if($r)
-			$zrl = true;
-	}
+	$zrl = is_matrix_url($link);
 	if($zrl)
 		$link = zid($link);
 	return	'<video controls="controls" src="' . $link . '" style="width:100%; max-width:' . get_app()->videowidth . 'px"><a href="' . $link . '">' . $link . '</a></video>';
@@ -439,20 +423,26 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 
 	// replace [observer.baseurl]
 	if ($observer) {
-		$obsBaseURL = $observer['xchan_url'];
-		$obsBaseURL = preg_replace("/\/channel\/.*$/", '', $obsBaseURL);
+		$obsBaseURL = $observer['xchan_connurl'];
+		$obsBaseURL = preg_replace("/\/poco\/.*$/", '', $obsBaseURL);
 		$Text = str_replace('[observer.baseurl]', $obsBaseURL, $Text);
 		$Text = str_replace('[observer.url]',$observer['xchan_url'], $Text);
 		$Text = str_replace('[observer.name]',$observer['xchan_name'], $Text);
 		$Text = str_replace('[observer.address]',$observer['xchan_addr'], $Text);
+		$Text = str_replace('[observer.webname]',substr($observer['xchan_addr'],0,strpos($observer['xchan_addr'],'@')), $Text);
 		$Text = str_replace('[observer.photo]','[zmg]'.$observer['xchan_photo_l'].'[/zmg]', $Text);				
 	} else {
 		$Text = str_replace('[observer.baseurl]', '', $Text);
 		$Text = str_replace('[observer.url]','', $Text);
 		$Text = str_replace('[observer.name]','', $Text);
 		$Text = str_replace('[observer.address]','', $Text);
+		$Text = str_replace('[observer.webname]','',$Text);
 		$Text = str_replace('[observer.photo]','', $Text);		
 	}
+
+
+
+
 
 	// Perform URL Search
 

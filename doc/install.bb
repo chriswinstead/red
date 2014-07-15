@@ -41,11 +41,11 @@ you might have trouble getting everything to work.]
 
         `git pull`
         
-    - make sure folder *view/tpl/smarty3* exists and is writable by webserver
+    - make sure folder *store/[data]/smarty3* exists and is writable by webserver
         
-        `mkdir view/tpl/smarty3`
+        `mkdir -p "store/\[data\]/smarty3"`
         
-        `chmod 777 view/smarty3`
+        `chmod 777 "store/\[data\]/smarty3"`
     
     - For installing addons
     
@@ -101,3 +101,5 @@ one shown, substituting for your unique paths and settings:
 You can generally find the location of PHP by executing &quot;which php&quot;. If you
 have troubles with this section please contact your hosting provider for
 assistance. Red will not work correctly if you cannot perform this step.
+
+Return to the [url=[baseurl]/help/main]Main documentation page[/url]

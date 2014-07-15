@@ -386,8 +386,6 @@
 
 function updateConvItems(mode,data) {
 
-
-
 	if(mode === 'update') {
 		prev = 'threads-begin';
 
@@ -554,6 +552,7 @@ function updateConvItems(mode,data) {
 	//	}					
 	//});
 	MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+
 }
 
 
@@ -590,30 +589,29 @@ function updateConvItems(mode,data) {
 		in_progress = true;
 
 		var update_url;
+		var update_mode;
 
-//		if(typeof buildCmd == 'function') {
-			if(scroll_next) {
-				bParam_page = next_page;
-				page_load = true;
-			}
-			else {
-				bParam_page = 1;
-			}
-			update_url = buildCmd();
-//		}
-//		else {
-//			page_load = false;
-//			var udargs = ((page_load) ? '/load' : '');
-//			update_url = 'update_' + src + udargs + '&p=' + profile_uid + '&page=' + profile_page + '&msie=' + ((msie) ? 1 : 0);
-//		}
+		if(scroll_next) {
+			bParam_page = next_page;
+			page_load = true;
+		}
+		else {
+			bParam_page = 1;
+		}
 
-		if(page_load)
+		update_url = buildCmd();
+
+		if(page_load) {
 			$("#page-spinner").spin('small');
+			if(bParam_page == 1)
+				update_mode = 'replace';
+			else
+				update_mode = 'append';
+		}
+		else
+			update_mode = 'update';
 
 		$.get(update_url,function(data) {
-			var update_mode = ((page_load && bParam_page == 1) ? 'replace' : 'update');
-			if(scroll_next)
-				update_mode = 'append';
 			page_load = false;
 			scroll_next = false;
 			updateConvItems(update_mode,data);
@@ -628,7 +626,7 @@ function updateConvItems(mode,data) {
 			// As it turns out this causes a bit of an inefficiency
 			// as we're pinging twice for every update, once before
 			// and once after. A btter way to do this is to rewrite
-			// NavUpdate and perhpas LiveUpdate so that we check for 
+			// NavUpdate and perhaps LiveUpdate so that we check for 
 			// post updates first and only call the notification ping 
 			// once. 
 

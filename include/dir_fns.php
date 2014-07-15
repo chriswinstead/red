@@ -98,7 +98,14 @@ function sync_directories($dirmode) {
 	foreach($r as $rr) {
 		if(! $rr['site_directory'])
 			continue;
-		$x = z_fetch_url($rr['site_directory'] . '?f=&sync=' . urlencode($rr['site_sync']));
+
+		logger('sync directories: ' . $rr['site_directory']);
+
+		// for brand new directory servers, only load the last couple of days. Everything before that will be repeats.
+
+		$syncdate = (($rr['site_sync'] === '0000-00-00 00:00:00') ? datetime_convert('UTC','UTC','now - 2 days') : $rr['site_sync']);
+		$x = z_fetch_url($rr['site_directory'] . '?f=&sync=' . urlencode($syncdate));
+
 		if(! $x['success'])
 			continue;
 		$j = json_decode($x['body'],true);
@@ -150,7 +157,7 @@ function update_directory_entry($ud) {
 			$j = json_decode($x['body'],true);
 			if($j)
 				$success = true;
-			$y = import_xchan($j,0);
+			$y = import_xchan($j,0,$ud);
 		}
 		if(! $success) {
 			$r = q("update updates set ud_last = '%s' where ud_addr = '%s'",

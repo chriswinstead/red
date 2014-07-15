@@ -2,7 +2,7 @@
 
 
 require_once("include/template_processor.php");
-require_once("include/friendica_smarty.php");
+require_once("include/smarty.php");
 
 /**
  * This is our template processor
@@ -122,6 +122,7 @@ function purify_html($s) {
 
 	$config = HTMLPurifier_Config::createDefault();
 	$config->set('Cache.DefinitionImpl', null);
+	$config->set('Attr.EnableID', true);
 
 	$purifier = new HTMLPurifier($config);
 	return $purifier->purify($s);
@@ -1237,6 +1238,27 @@ function format_hashtags(&$item) {
 
 
 
+function format_mentions(&$item) {
+
+	$s = '';
+	$terms = get_terms_oftype($item['term'],TERM_MENTION);
+	if($terms) {
+		$categories = array();
+		foreach($terms as $t) {
+			$term = htmlspecialchars($t['term'],ENT_COMPAT,'UTF-8',false) ;
+			if(! trim($term))
+				continue;
+			if(strpos($item['body'], $t['url']))
+				continue;
+
+			if($s)
+				$s .= '&nbsp';
+
+			$s .= '@<a href="' . zid($t['url']) . '" >' . $term . '</a>';
+		}
+	}
+	return $s;
+}
 
 
 function format_filer(&$item) {
@@ -1292,6 +1314,10 @@ function prepare_body(&$item,$attach = false) {
 
 
 	$s .= format_hashtags($item);
+
+	if($item['resource_type'])
+		$s .= format_mentions($item);
+
 
 	$s .= format_categories($item,$writeable);
 

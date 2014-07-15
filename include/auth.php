@@ -35,13 +35,24 @@ function nuke_session() {
 
 function account_verify_password($email,$pass) {
 
+	$email_verify = get_config('system','verify_email');
+	$register_policy = get_config('system','register_policy');
+
+	// Currently we only verify email address if there is an open registration policy.
+	// This isn't because of any policy - it's because the workflow gets too complicated if 
+	// you have to verify the email and then go through the account approval workflow before
+	// letting them login.  
+
+	if(($email_verify) && ($register_policy == REGISTER_OPEN) && ($record['account_flags'] & ACCOUNT_UNVERIFIED))
+		return null;
+
 	$r = q("select * from account where account_email = '%s'",
 		dbesc($email)
 	);
 	if(! ($r && count($r)))
 		return null;
 	foreach($r as $record) {
-		if(($record['account_flags'] == ACCOUNT_OK) || ($record['account_flags'] == ACCOUNT_UNVERIFIED)
+		if(($record['account_flags'] == ACCOUNT_OK)
 			&& (hash('whirlpool',$record['account_salt'] . $pass) === $record['account_password'])) {
 			logger('password verified for ' . $email);
 			return $record;

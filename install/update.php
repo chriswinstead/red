@@ -1,6 +1,6 @@
 <?php
 
-define( 'UPDATE_VERSION' , 1115 );
+define( 'UPDATE_VERSION' , 1117 );
 
 /**
  *
@@ -995,7 +995,7 @@ ADD INDEX ( `menu_flags` )");
 }
 
 function update_r1091() {
-	@mkdir('store/[data]/smarty',STORAGE_DEFAULT_PERMISSIONS,true);
+	@mkdir('store/[data]/smarty3',STORAGE_DEFAULT_PERMISSIONS,true);
 	@file_put_contents('store/[data]/locks','');
 	return UPDATE_SUCCESS;
 }
@@ -1291,3 +1291,16 @@ ADD INDEX ( `target_id` )");
 	return UPDATE_FAILED;
 }
 	
+function update_r1115() {
+
+	// Introducing email verification. Mark all existing accounts as verified or they
+	// won't be able to login.
+
+	$r = q("update account set account_flags = (account_flags ^ 1) where (account_flags & 1) ");
+	return UPDATE_SUCCESS;
+}
+
+function update_r1116() {
+	@mkdir('store/[data]/smarty3',STORAGE_DEFAULT_PERMISSIONS,true);
+	return UPDATE_SUCCESS;
+} 

@@ -76,9 +76,9 @@ function mail_post(&$a) {
 		}
 	}
 
-	if(feature_enabled(local_user(),'richtext')) {
-		$body = fix_mce_lf($body);
-	}
+//	if(feature_enabled(local_user(),'richtext')) {
+//		$body = fix_mce_lf($body);
+//	}
 
 	if(! $recipient) {
 		notice('No recipient found.');
@@ -156,11 +156,7 @@ function mail_content(&$a) {
 		
 		$o .= $header;
 		
-		$plaintext = false;
-		if(intval(get_pconfig(local_user(),'system','plaintext')))
-			$plaintext = true;
-		if(! feature_enabled(local_user(),'richtext'))
-			$plaintext = true;
+		$plaintext = true;
 
 		$tpl = get_markup_template('msg-header.tpl');
 
@@ -173,9 +169,22 @@ function mail_content(&$a) {
 		));
 	
 		$preselect = (isset($a->argv[2])?array($a->argv[2]):false);
-			
-
 		$prename = $preurl = $preid = '';
+			
+		if(x($_REQUEST,'hash')) {
+			$r = q("select abook.*, xchan.* from abook left join xchan on abook_xchan = xchan_hash
+				where abook_channel = %d and abook_xchan = '%s' limit 1",
+				intval(local_user()),
+				dbesc($_REQUEST['hash'])
+			);
+			if($r) {
+				$prename = $r[0]['xchan_name'];
+				$preurl = $r[0]['xchan_url'];
+				$preid = $r[0]['abook_id'];
+				$preselect = array($preid);
+			}
+		}
+
 
 		if($preselect) {
 			$r = q("select abook.*, xchan.* from abook left join xchan on abook_xchan = xchan_hash
@@ -240,8 +249,9 @@ function mail_content(&$a) {
 		$o .= $header;
 
 		$plaintext = true;
-		if( local_user() && feature_enabled(local_user(),'richtext') )
-			$plaintext = false;
+
+//		if( local_user() && feature_enabled(local_user(),'richtext') )
+//			$plaintext = false;
 
 		$messages = private_messages_fetch_conversation(local_user(), argv(1), true);
 

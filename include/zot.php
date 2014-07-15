@@ -582,16 +582,19 @@ function zot_register_hub($arr) {
  * 
  * @param array $arr => json_decoded discovery packet
  * @param int $ud_flags
- *    Determines whether to create a directory update record if any changes occur, default is UPDATE_FLAGS_UPDATED (true)
+ *    Determines whether to create a directory update record if any changes occur, default is UPDATE_FLAGS_UPDATED
  *    $ud_flags = UPDATE_FLAGS_FORCED indicates a forced refresh where we unconditionally create a directory update record
  *      this typically occurs once a month for each channel as part of a scheduled ping to notify the directory
  *      that the channel still exists
+ * @param array $ud_arr
+ *    If set [typically by update_directory_entry()] indicates a specific update table row and more particularly 
+ *    contains a particular address (ud_addr) which needs to be updated in that table.
  *
  * @returns array =>  'success' (boolean true or false)
  *                    'message' (optional error string only if success is false)
  */
 
-function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED) {
+function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED, $ud_arr = null) {
 
 
 	call_hooks('import_xchan', $arr);
@@ -961,15 +964,16 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED) {
 
 	}
 
+	// Which entries in the update table are we interested in updating?
 
-
+	$address = (($ud_arr && $ud_arr['ud_addr']) ? $ud_arr['ud_addr'] : $arr['address']);
 
 
 	// Are we a directory server of some kind?
 
 	if($dirmode != DIRECTORY_MODE_NORMAL) {
 		if(array_key_exists('profile',$arr) && is_array($arr['profile'])) {
-			$profile_changed = import_directory_profile($xchan_hash,$arr['profile'],$arr['address'],$ud_flags, 1);
+			$profile_changed = import_directory_profile($xchan_hash,$arr['profile'],$address,$ud_flags, 1);
 			if($profile_changed) {
 				$what .= 'profile ';
 				$changed = true;
@@ -995,16 +999,17 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED) {
 		}
 	}
 	
+
 	if(($changed) || ($ud_flags == UPDATE_FLAGS_FORCED)) {
 		$guid = random_string() . '@' . get_app()->get_hostname();		
-		update_modtime($xchan_hash,$guid,$arr['address'],$ud_flags);
+		update_modtime($xchan_hash,$guid,$address,$ud_flags);
 		logger('import_xchan: changed: ' . $what,LOGGER_DEBUG);
 	}
 	elseif(! $ud_flags) {
 		// nothing changed but we still need to update the updates record
 		q("update updates set ud_flags = ( ud_flags | %d ) where ud_addr = '%s' and not (ud_flags & %d) ",
 			intval(UPDATE_FLAGS_UPDATED),
-			dbesc($arr['address']),
+			dbesc($address),
 			intval(UPDATE_FLAGS_UPDATED)
 		);
 	}
@@ -2036,7 +2041,7 @@ function import_site($arr,$pubkey) {
  * such things as personal settings, channel permissions, address book updates, etc.
  */
 
-function build_sync_packet($uid = 0, $packet = null) {
+function build_sync_packet($uid = 0, $packet = null, $groups_changed = false) {
 
 	$a = get_app();
 
@@ -2111,6 +2116,20 @@ function build_sync_packet($uid = 0, $packet = null) {
 
 			$info['channel'][$k] = $v;
 		}
+	}
+
+	if($groups_changed) {
+		$r = q("select * from groups where uid = %d",
+			intval($uid)
+		);
+		if($r)
+			$info['collections'] = $r;
+		$r = q("select * from group_member where uid = %d",
+			intval($uid)
+		);
+		if($r)
+			$info['collection_members'] = $r;
+			
 	}
 
 	$interval = ((get_config('system','delivery_interval') !== false) 

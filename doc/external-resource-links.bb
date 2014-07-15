@@ -6,6 +6,7 @@
 [*][url=https://github.com/omigeot/redstrap3]Redstrap[/url]
 [*][url=https://github.com/23n/Pluto]Pluto[/url]
 [*][url=https://bitbucket.org/tobiasd/red-clean]Clean[/url]
+[*][url=https://github.com/tonybaldwin/redmatrixthemes/]nubasic[/url]
 
 [b]Third-Party Addons[/b]
 [*][url=http://beardyunixer.com:1234/?p=red-addons.git;a=tree]Webpage/Publishing orientated addons and modules[/url]
@@ -19,3 +20,5 @@
 
 [b]Utilities[/b]
 [*][url=http://beardyunixer.com:1234/?p=debian-install-script.git;a=tree]Debian Install Script[/url]
+
+Return to the [url=[baseurl]/help/main]Main documentation page[/url]

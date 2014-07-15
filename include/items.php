@@ -32,11 +32,9 @@ function collect_recipients($item,&$private) {
 		// as that would allow the denied person to see the post by logging out. 
 
 		if((! $item['allow_cid']) && (! $item['allow_gid'])) {
-			$r = q("select * from abook where abook_channel = %d and not (abook_flags & %d) and not (abook_flags & %d) and not (abook_flags & %d)",
+			$r = q("select * from abook where abook_channel = %d and not (abook_flags & %d) ",
 				intval($item['uid']),
-				intval(ABOOK_FLAG_SELF),
-				intval(ABOOK_FLAG_PENDING),
-				intval(ABOOK_FLAG_ARCHIVED)
+				intval(ABOOK_FLAG_SELF|ABOOK_FLAG_PENDING|ABOOK_FLAG_ARCHIVED)
 			);
 
 			if($r) {
@@ -55,11 +53,9 @@ function collect_recipients($item,&$private) {
 	}
 	else {
 		if(! $private) {
-			$r = q("select abook_xchan from abook where abook_channel = %d and not (abook_flags & %d) and not (abook_flags & %d) and not (abook_flags & %d)",
+			$r = q("select abook_xchan from abook where abook_channel = %d and not (abook_flags & %d) ",
 				intval($item['uid']),
-				intval(ABOOK_FLAG_SELF),
-				intval(ABOOK_FLAG_PENDING),
-				intval(ABOOK_FLAG_ARCHIVED)
+				intval(ABOOK_FLAG_SELF|ABOOK_FLAG_PENDING|ABOOK_FLAG_ARCHIVED)
 			);
 			if($r) {
 				foreach($r as $rr) {
@@ -193,15 +189,8 @@ function add_source_route($iid,$hash) {
 
 
 function red_zrl_callback($matches) {
-	$m = @parse_url($matches[2]);
-	$zrl = false;
-	if($m['host']) {
-		$r = q("select hubloc_url from hubloc where hubloc_host = '%s' limit 1",
-			dbesc($m['host'])
-		);
-		if($r)
-			$zrl = true;
-	}
+	require_once('include/hubloc.php');
+	$zrl = is_matrix_url($matches[2]);
 
 	$t = strip_zids($matches[2]);
 	if($t !== $matches[2]) {
@@ -240,15 +229,8 @@ function red_unescape_codeblock($m) {
 
 
 function red_zrlify_img_callback($matches) {
-	$m = @parse_url($matches[2]);
-	$zrl = false;
-	if($m['host']) {
-		$r = q("select hubloc_url from hubloc where hubloc_host = '%s' limit 1",
-			dbesc($m['host'])
-		);
-		if($r)
-			$zrl = true;
-	}
+	require_once('include/hubloc.php');
+	$zrl = is_matrix_url($matches[2]);
 
 	$t = strip_zids($matches[2]);
 	if($t !== $matches[2]) {
@@ -3603,6 +3585,7 @@ function drop_items($items) {
 
 function drop_item($id,$interactive = true,$stage = DROPITEM_NORMAL) {
 
+
 	$a = get_app();
 
 	// locate item to be deleted
@@ -3730,19 +3713,7 @@ function delete_item_lowlevel($item,$stage = DROPITEM_NORMAL) {
 		intval($item['uid'])
 	);
 
-
-	// network deletion request. Keep the message structure so that we can deliver delete notifications.
-	// Come back after several days (or perhaps a month) to do the lowlevel delete (DROPITEM_PHASE2).
-
-	if($stage == DROPITEM_PHASE1)
-		return true;
-
-	$r = q("delete from term where otype = %d and oid = %d limit 1",
-		intval(TERM_OBJ_POST),
-		intval($item['id'])
-	);
-
-	// If item is a link to a photo resource, nuke all the associated photos 
+	// If item is a link to a photo/event resource, nuke all the associated photos/events 
 	// This only applies to photos uploaded from the photos page. Photos inserted into a post do not
 	// generate a resource_id and therefore aren't intimately linked to the item. 
 
@@ -3760,6 +3731,18 @@ function delete_item_lowlevel($item,$stage = DROPITEM_NORMAL) {
 			);
 		}
 	}
+
+
+	// network deletion request. Keep the message structure so that we can deliver delete notifications.
+	// Come back after several days (or perhaps a month) to do the lowlevel delete (DROPITEM_PHASE2).
+
+	if($stage == DROPITEM_PHASE1)
+		return true;
+
+	$r = q("delete from term where otype = %d and oid = %d limit 1",
+		intval(TERM_OBJ_POST),
+		intval($item['id'])
+	);
 
 	q("delete from item_id where iid = %d and uid = %d limit 1",
 		intval($item['id']),

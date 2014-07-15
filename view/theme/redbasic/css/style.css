@@ -934,11 +934,16 @@ aside li {
 	margin-bottom: 10px;
 }
 
-#event-summary {
+.event-wrapper {
 	width: 400px;
+	height: auto;
+	padding: 10px;
 }
 
 .vevent {
+	max-width: 100%; 
+	margin-left: 10px;
+	margin-right: 10px;
 	border: 1px solid #CCCCCC;
 }
 
@@ -975,8 +980,17 @@ aside li {
 
 .event-start, .event-end {
 	margin-left: 10px;
-	width: 330px;
+	width: 300px;
 	clear: both;
+}
+
+.event-owner img {
+	padding: 10px;
+}
+
+.event-buttons {
+	margin-top: 10px;
+	margin-left: 10px;
 }
 
 .event-start .dtstart, .event-end .dtend {
@@ -2062,10 +2076,14 @@ img.mail-list-sender-photo {
 	border-bottom-right-radius: $radiuspx;
 	border-bottom-left-radius: $radiuspx;
 	text-align: center;
+	font-weight: bold;
+	color: $link_colour;
+	cursor: pointer;	
 }
 
 .divgrow-showmore:hover {
 	border-top: 1px dashed #adadad;
+	text-decoration: underline;
 }
 
 

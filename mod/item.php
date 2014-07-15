@@ -375,7 +375,7 @@ function item_post(&$a) {
 			killme();
 		}
 	}
-
+	
 
 	$expires = '0000-00-00 00:00:00';
 
@@ -422,6 +422,12 @@ function item_post(&$a) {
 
 	if($mimetype === 'text/bbcode') {
 
+		if(local_user() && local_user() == $profile_uid && feature_enabled(local_user(),'markdown')) {
+			require_once('include/bb2diaspora.php');
+			$body = diaspora2bb($body,true);
+		}
+
+
 		// BBCODE alert: the following functions assume bbcode input
 		// and will require alternatives for alternative content-types (text/html, text/markdown, text/plain, etc.)
 		// we may need virtual or template classes to implement the possible alternatives
@@ -430,10 +436,14 @@ function item_post(&$a) {
 		// First figure out if it's a status post that would've been
 		// created using tinymce. Otherwise leave it alone. 
 
-		$plaintext = ((feature_enabled($profile_uid,'richtext')) ? false : true);
-		if((! $parent) && (! $api_source) && (! $plaintext)) {
-			$body = fix_mce_lf($body);
-		}
+		$plaintext = true;
+
+//		$plaintext = ((feature_enabled($profile_uid,'richtext')) ? false : true);
+//		if((! $parent) && (! $api_source) && (! $plaintext)) {
+//			$body = fix_mce_lf($body);
+//		}
+
+
 
 		// If we're sending a private top-level message with a single @-taggable channel as a recipient, @-tag it, if our pconfig is set.
 
@@ -781,7 +791,11 @@ function item_post(&$a) {
 		logger('mod_item: saved item ' . $post_id);
 
 		if($parent) {
-			if($datarray['owner_xchan'] != $datarray['author_xchan']) {
+
+			// only send comment notification if this is a wall-to-wall comment,
+			// otherwise it will happen during delivery
+
+			if(($datarray['owner_xchan'] != $datarray['author_xchan']) && ($parent_item['item_flags'] & ITEM_WALL)) {
 				notification(array(
 					'type'         => NOTIFY_COMMENT,
 					'from_xchan'   => $datarray['author_xchan'],
