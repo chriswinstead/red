@@ -14,6 +14,11 @@ Deny from all
   RewriteRule "(^|/)\.git" - [F]
   RewriteRule "(^|/)store" - [F]
 
+  RewriteCond %{HTTPS} !=on
+  # This checks to make sure the connection is not already HTTPS
+
+  RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
+
 
   # Rewrite current-style URLs of the form 'index.php?q=x'.
   # Also place auth information into REMOTE_USER for sites running

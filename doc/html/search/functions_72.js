@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['random_5fprofile',['random_profile',['../Contact_8php.html#a852fa476f0c70bde10a4f2533aec5f71',1,'Contact.php']]],
+  ['random_5fprofile',['random_profile',['../Contact_8php.html#a7e3f5bef8ea1d2bf8434c9be36a2b713',1,'Contact.php']]],
   ['random_5fstring',['random_string',['../text_8php.html#a9d6a5ee1290de7a8b483fe78585daade',1,'text.php']]],
   ['randprof_5finit',['randprof_init',['../randprof_8php.html#abf5dba3c608b9304cbf68327cd31b090',1,'randprof.php']]],
   ['rbmark_5fcontent',['rbmark_content',['../rbmark_8php.html#a43fec4960b50926251574762cc491f76',1,'rbmark.php']]],
@@ -49,7 +49,7 @@ var searchData=
   ['removeme_5fpost',['removeme_post',['../removeme_8php.html#a7be08738beca44bb98a79e01cdb2ee88',1,'removeme.php']]],
   ['render_5flocation_5fdefault',['render_location_default',['../conversation_8php.html#a40b9b5e7825bc73932a32e667f05e6f2',1,'conversation.php']]],
   ['replace',['replace',['../classTemplate.html#a285b5b2007dbbf733476273df3fed4ef',1,'Template']]],
-  ['replace_5fmacros',['replace_macros',['../classFriendicaSmartyEngine.html#ad62f1181d2f02b54b46731ad2bd46db2',1,'FriendicaSmartyEngine\replace_macros()'],['../interfaceITemplateEngine.html#aaa7381c8becc3d1c1790b53988a0f243',1,'ITemplateEngine\replace_macros()'],['../classTemplate.html#a07737733f6949bdedea1e3d301b2ab7b',1,'Template\replace_macros()'],['../text_8php.html#a9c6ce4e12a4ac883c5e3f36fed6e1e09',1,'replace_macros():&#160;text.php']]],
+  ['replace_5fmacros',['replace_macros',['../interfaceITemplateEngine.html#aaa7381c8becc3d1c1790b53988a0f243',1,'ITemplateEngine\replace_macros()'],['../classFriendicaSmartyEngine.html#ad62f1181d2f02b54b46731ad2bd46db2',1,'FriendicaSmartyEngine\replace_macros()'],['../classTemplate.html#a07737733f6949bdedea1e3d301b2ab7b',1,'Template\replace_macros()'],['../text_8php.html#a9c6ce4e12a4ac883c5e3f36fed6e1e09',1,'replace_macros():&#160;text.php']]],
   ['requestdata',['requestdata',['../include_2api_8php.html#a43c47de8565cc00c3369cb35c19cc75e',1,'api.php']]],
   ['retain_5fitem',['retain_item',['../items_8php.html#af6237605c60d69abdd959ddbbee3420c',1,'items.php']]],
   ['return_5fbytes',['return_bytes',['../text_8php.html#ae2126da85966da0e79c6bcbac63b0bda',1,'text.php']]],

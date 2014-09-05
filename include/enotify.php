@@ -65,7 +65,7 @@ function notification($params) {
 			localize_item($i);
 			$title = $i['title'];
 			$body = $i['body'];
-			$private = $i['item_private'];
+			$private = (($i['item_private']) || ($i['item_flags'] & ITEM_OBSCURED));
 		}
 		else {
 			$title = $params['item']['title'];
@@ -135,7 +135,7 @@ function notification($params) {
 
 
 		$item_post_type = item_post_type($p[0]);
-		$private = $p[0]['item_private'];
+//		$private = $p[0]['item_private'];
 		$parent_id = $p[0]['id'];
 
 		//$possess_desc = str_replace('<!item_type!>',$possess_desc);

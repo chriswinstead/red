@@ -47,7 +47,7 @@ define ( 'RED_PLATFORM',            'Red Matrix' );
 define ( 'RED_VERSION',             trim(file_get_contents('version.inc')) . 'R');
 define ( 'ZOT_REVISION',            1     );
 
-define ( 'DB_UPDATE_VERSION',       1117  );
+define ( 'DB_UPDATE_VERSION',       1121  );
 
 define ( 'EOL',                    '<br />' . "\r\n"     );
 define ( 'ATOM_TIME',              'Y-m-d\TH:i:s\Z' );
@@ -282,7 +282,7 @@ define ( 'PERMS_W_STORAGE',        0x02000);
 define ( 'PERMS_R_PAGES',          0x04000);
 define ( 'PERMS_W_PAGES',          0x08000);
 define ( 'PERMS_A_REPUBLISH',      0x10000);
-define ( 'PERMS_A_BOOKMARK',       0x20000);
+define ( 'PERMS_W_LIKE',           0x20000);
 
 // General channel permissions
 
@@ -358,6 +358,11 @@ define ( 'MAX_LIKERS',    10);
 
 define ( 'ZCURL_TIMEOUT' , (-1));
 
+/**
+ * Hours before chat lines are deleted
+ */
+
+define ( 'MAX_CHATROOM_HOURS' , 36);
 
 /**
  * email notification options
@@ -1168,6 +1173,15 @@ function absurl($path) {
 	return $path;
 }
 
+function os_mkdir($path,$mode = 0777,$recursive = false) {
+	$oldumask = @umask(0);
+	@mkdir($path, $mode, $recursive);
+	@umask($oldumask); 
+}
+
+
+
+
 function is_ajax() {
 	return (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
 }
@@ -1365,12 +1379,21 @@ function fix_system_urls($oldurl,$newurl) {
 	// that they can clean up their hubloc tables (this includes directories).
 	// It's a very expensive operation so you don't want to have to do it often or after your site gets to be large.
 
-	$r = q("select xchan.*, channel.* from xchan left join channel on channel_hash = xchan_hash where xchan_url like '%s'",
+	$r = q("select xchan.*, hubloc.* from xchan left join hubloc on xchan_hash = hubloc_hash where hubloc_url like '%s'",
 		dbesc($oldurl . '%')
 	);
+
 	if($r) {
 		foreach($r as $rr) {
-			$channel = substr($rr['xchan_addr'],0,strpos($rr['xchan_addr'],'@'));
+			$channel_address = substr($rr['hubloc_addr'],0,strpos($rr['hubloc_addr'],'@'));
+
+			// get the associated channel. If we don't have a local channel, do nothing for this entry.
+
+			$c = q("select * from channel where channel_hash = '%s' limit 1",
+				dbesc($rr['hubloc_hash'])
+			);
+			if(! $c)
+				continue;
 
 			$parsed = @parse_url($newurl);
 			if(! $parsed)
@@ -1387,9 +1410,13 @@ function fix_system_urls($oldurl,$newurl) {
 			// paths aren't going to work. You have to be at the (sub)domain root
 			// . (($parsed['path']) ? $parsed['path'] : '');
 
+			// The xchan_url might point to another nomadic identity clone
+
+			$replace_xchan_url = ((strpos($rr['xchan_url'],$oldurl) !== false) ? true : false);
+
 			$x = q("update xchan set xchan_addr = '%s', xchan_url = '%s', xchan_connurl = '%s', xchan_follow = '%s', xchan_connpage = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_date = '%s' where xchan_hash = '%s' limit 1",
-				dbesc($channel . '@' . $rhs),
-				dbesc(str_replace($oldurl,$newurl,$rr['xchan_url'])),
+				dbesc($channel_address . '@' . $rhs),
+				dbesc(($replace_xchan_url) ? str_replace($oldurl,$newurl,$rr['xchan_url']) : $rr['xchan_url']),
 				dbesc(str_replace($oldurl,$newurl,$rr['xchan_connurl'])),
 				dbesc(str_replace($oldurl,$newurl,$rr['xchan_follow'])),
 				dbesc(str_replace($oldurl,$newurl,$rr['xchan_connpage'])),
@@ -1400,26 +1427,23 @@ function fix_system_urls($oldurl,$newurl) {
 				dbesc($rr['xchan_hash'])
 			);
 
-
 			$y = q("update hubloc set hubloc_addr = '%s', hubloc_url = '%s', hubloc_url_sig = '%s', hubloc_host = '%s', hubloc_callback = '%s' where hubloc_hash = '%s' and hubloc_url = '%s' limit 1",
-				dbesc($channel . '@' . $rhs),
+				dbesc($channel_address . '@' . $rhs),
 				dbesc($newurl),
-				dbesc(base64url_encode(rsa_sign($newurl,$rr['channel_prvkey']))),
+				dbesc(base64url_encode(rsa_sign($newurl,$c[0]['channel_prvkey']))),
 				dbesc($newhost),
 				dbesc($newurl . '/post'),
 				dbesc($rr['xchan_hash']),
 				dbesc($oldurl)
 			);
 
-
 			$z = q("update profile set photo = '%s', thumb = '%s' where uid = %d",
 				dbesc(str_replace($oldurl,$newurl,$rr['xchan_photo_l'])),
 				dbesc(str_replace($oldurl,$newurl,$rr['xchan_photo_m'])),
-				intval($rr['channel_id'])
+				intval($c[0]['channel_id'])
 			);
 
-			proc_run('php', 'include/notifier.php', 'refresh_all', $rr['channel_id']);
-
+			proc_run('php', 'include/notifier.php', 'refresh_all', $c[0]['channel_id']);
 		}
 	}
 }

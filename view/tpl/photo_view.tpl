@@ -9,6 +9,7 @@
 </div>
 
 {{if $prevlink}}<div id="photo-prev-link"><a href="{{$prevlink.0}}"><i class="icon-backward photo-icons"></i></div>{{/if}}
+
 <div id="Gallery">
 <div class="gallery-row">
 <div class="gallery-item"><a id="single_image" href="{{$photo.href}}" title="{{$photo.title}}"><img style="max-width: 100%;" src="{{$photo.src}}" /></a></div>
@@ -27,7 +28,7 @@
 {{/if}}
 
 {{if $edit}}
-<div id="photo-edit-edit-wrapper" class="fakelink" onclick="openClose('photo-edit-edit');">{{$edit.edit}}</div>
+<div id="photo-edit-edit-wrapper" class="btn btn-default fakelink" onclick="openClose('photo-edit-edit'); closeOpen('photo-photo-delete-button')">{{$edit.edit}}</div>
 <div id="photo-edit-edit" style="display: none;">
 <form action="photos/{{$edit.nickname}}/{{$edit.resource_id}}" method="post" id="photo_edit_form">
 
@@ -80,6 +81,10 @@
 	<div id="photo-edit-end"></div>
 </form>
 </div>
+
+<form action="photos/{{$edit.nickname}}/{{$edit.resource_id}}" method="post">
+	<input id="photo-photo-delete-button" type="submit" name="delete" value="{{$edit.delete}}" onclick="return confirmDelete();">
+</form>
 {{/if}}
 
 {{if $likebuttons}}
@@ -91,6 +96,12 @@
 {{/if}}
 
 {{$comments}}
+
+</div>
+
+{{if $nextlink}}<div id="photo-next-link"><a href="{{$nextlink.0}}"><i class="icon-forward photo-icons"></i></a></div>{{/if}}
+
+<div class="clear"></div>
 
 {{$paginate}}
 

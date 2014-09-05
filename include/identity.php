@@ -201,7 +201,7 @@ function create_identity($arr) {
 
 
 	$sig = base64url_encode(rsa_sign($guid,$key['prvkey']));
-	$hash = base64url_encode(hash('whirlpool',$guid . $sig,true));
+	$hash = make_xchan_hash($guid,$sig);
 
 	// Force a few things on the short term until we can provide a theme or app with choice
 
@@ -952,7 +952,7 @@ function advanced_profile(&$a) {
 		if($a->profile['gender']) $profile['gender'] = array( t('Gender:'),  $a->profile['gender'] );
 		
 		$ob_hash = get_observer_hash();
-		if($ob_hash && perm_is_allowed($a->profile['profile_uid'],$ob_hash,'post_wall')) {
+		if($ob_hash && perm_is_allowed($a->profile['profile_uid'],$ob_hash,'post_like')) {
 			$profile['canlike'] = true;
 			$profile['likethis'] = t('Like this channel');
 			$profile['profile_guid'] = $a->profile['profile_guid'];
@@ -1312,3 +1312,38 @@ function is_public_profile() {
 		return true;
 	return false;
 }
+
+function get_profile_fields_basic($filter = 0) {
+
+	$profile_fields_basic = (($filter == 0) ? get_config('system','profile_fields_basic') : null);
+	if(! $profile_fields_basic)
+		$profile_fields_basic = array('name','pdesc','chandesc','gender','dob','dob_tz','address','locality','region','postal_code','country_name','marital','sexual','homepage','hometown','keywords','about','contact');
+
+	$x = array();
+	if($profile_fields_basic)
+		foreach($profile_fields_basic as $f)
+			$x[$f] = 1;
+
+	return $x;
+
+}
+
+
+function get_profile_fields_advanced($filter = 0) {
+	$basic = get_profile_fields_basic($filter);
+	$profile_fields_advanced = (($filter == 0) ? get_config('system','profile_fields_advanced') : null);
+	if(! $profile_fields_advanced)
+		$profile_fields_advanced = array('with','howlong','politic','religion','likes','dislikes','interest','channels','music','book','film','tv','romance','work','education');
+
+	$x = array();
+	if($basic)
+		foreach($basic as $f => $v)
+			$x[$f] = $v;
+	if($profile_fields_advanced)
+		foreach($profile_fields_advanced as $f)
+			$x[$f] = 1;
+
+	return $x;
+}
+
+

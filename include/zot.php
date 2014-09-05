@@ -35,6 +35,20 @@ function zot_new_uid($channel_nick) {
 
 
 /**
+ *
+ * function make_xchan_hash($guid,$guid_sig)
+ *
+ * Generates a portable hash identifier for the channel identified by $guid and signed with $guid_sig
+ * This ID is portable across the network but MUST be calculated locally by verifying the signature
+ * and can not be trusted as an identity.
+ *
+ */
+
+function make_xchan_hash($guid,$guid_sig) {
+	return base64url_encode(hash('whirlpool',$guid . $guid_sig, true));
+}
+
+/**
  * @function zot_get_hublocs($hash)
  *     Given a zot hash, return all distinct hubs. 
  *     This function is used in building the zot discovery packet
@@ -340,7 +354,7 @@ function zot_refresh($them,$channel = null, $force = false) {
 						$connected_set = intval($v);
 						continue;
 					}	
-					if($v) {
+					if(($v) && (array_key_exists($k,$global_perms))) {
 						$their_perms = $their_perms | intval($global_perms[$k][1]);
 					}
 				}
@@ -538,7 +552,7 @@ function zot_register_hub($arr) {
 
 	if($arr['url'] && $arr['url_sig'] && $arr['guid'] && $arr['guid_sig']) {
 
-		$guid_hash = base64url_encode(hash('whirlpool',$arr['guid'] . $arr['guid_sig'], true));
+		$guid_hash = make_xchan_hash($arr['guid'],$arr['guid_sig']);
 
 		$url = $arr['url'] . '/.well-known/zot-info/?f=&guid_hash=' . $guid_hash;
 
@@ -612,7 +626,7 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED, $ud_arr = null) {
 	}
 
 
-	$xchan_hash = base64url_encode(hash('whirlpool',$arr['guid'] . $arr['guid_sig'], true));
+	$xchan_hash = make_xchan_hash($arr['guid'],$arr['guid_sig']);
 	$import_photos = false;
 
 	if(! rsa_verify($arr['guid'],base64url_decode($arr['guid_sig']),$arr['key'])) {
@@ -1167,14 +1181,14 @@ function zot_import($arr, $sender_url) {
 			}
 
 
-			$i['notify']['sender']['hash'] = base64url_encode(hash('whirlpool',$i['notify']['sender']['guid'] . $i['notify']['sender']['guid_sig'], true));
+			$i['notify']['sender']['hash'] = make_xchan_hash($i['notify']['sender']['guid'],$i['notify']['sender']['guid_sig']);
 			$deliveries = null;
 
 			if(array_key_exists('recipients',$i['notify']) && count($i['notify']['recipients'])) {
 				logger('specific recipients');
 				$recip_arr = array();
 				foreach($i['notify']['recipients'] as $recip) {
-					$recip_arr[] =  base64url_encode(hash('whirlpool',$recip['guid'] . $recip['guid_sig'], true));
+					$recip_arr[] =  make_xchan_hash($recip['guid'],$recip['guid_sig']);
 				}
 				stringify_array_elms($recip_arr);
 				$recips = implode(',',$recip_arr);
@@ -1186,6 +1200,12 @@ function zot_import($arr, $sender_url) {
 					continue;
 				}
 
+				// It's a specifically targetted post. If we were sent a public_scope hint (likely), 
+				// get rid of it so that it doesn't get stored and cause trouble. 
+
+				if(array_key_exists('message',$i) && array_key_exists('public_scope',$i['message']))
+					unset($i['message']['public_scope']);
+
 				$deliveries = $r;
 
 				// We found somebody on this site that's in the recipient list. 
@@ -1193,18 +1213,32 @@ function zot_import($arr, $sender_url) {
 			}
 			else {
 				if(($i['message']) && (array_key_exists('flags',$i['message'])) && (in_array('private',$i['message']['flags']))) {
-					// This should not happen but until we can stop it...
-					logger('private message was delivered with no recipients.');
-					continue;
+					if(array_key_exists('public_scope',$i['message']) && $i['message']['public_scope'] === 'public') {
+						// This should not happen but until we can stop it...
+						logger('private message was delivered with no recipients.');
+						continue;
+					}
 				}
 
-				logger('public post');
+				logger('public post');				
 
 				// Public post. look for any site members who are or may be accepting posts from this sender
 				// and who are allowed to see them based on the sender's permissions
 
 				$deliveries = allowed_public_recips($i);
 
+				// if the scope is anything but 'public' we're going to store it as private regardless
+				// of the private flag on the post. 
+
+				if($i['message'] && array_key_exists('public_scope',$i['message']) 
+					&& $i['message']['public_scope'] !== 'public') {
+
+					if(! array_key_exists('flags',$i['message'])) 
+						$i['message']['flags'] = array();
+					if(! in_array('private',$i['message']['flags']))
+						$i['message']['flags'][] = 'private';
+
+				}
 			}
 
 			// Go through the hash array and remove duplicates. array_unique() won't do this because the array is more than one level.
@@ -1390,7 +1424,7 @@ function allowed_public_recips($msg) {
 	if(array_key_exists('public_scope',$msg['message']))
 		$scope = $msg['message']['public_scope'];
 
-	$hash = base64url_encode(hash('whirlpool',$msg['notify']['sender']['guid'] . $msg['notify']['sender']['guid_sig'], true));
+	$hash = make_xchan_hash($msg['notify']['sender']['guid'],$msg['notify']['sender']['guid_sig']);
 
 	if($scope === 'public' || $scope === 'network: red')
 		return $recips;
@@ -1633,11 +1667,6 @@ function delete_imported_item($sender,$item,$uid) {
 	} 
 		
 	require_once('include/items.php');
-
-	// FIXME issue #230 is related
-	// Chicken/egg problem because we have to drop_item, but this removes information that tag_deliver may need to do its stuff.
-	// We can't reverse the order because drop_item refuses to run if the item already has the deleted flag set and we need to
-	// set that flag prior to calling tag_deliver.
 
 	// Use phased deletion to set the deleted flag, call both tag_deliver and the notifier to notify downstream channels
 	// and then clean up after ourselves with a cron job after several days to do the delete_item_lowlevel() (DROPITEM_PHASE2).
@@ -2090,6 +2119,7 @@ function build_sync_packet($uid = 0, $packet = null, $groups_changed = false) {
 
 	$info = (($packet) ? $packet : array());
 	$info['type'] = 'channel_sync';
+	$info['encoding'] = 'red'; // note: not zot, this packet is very red specific
 
 	if(array_key_exists($uid,$a->config) && array_key_exists('transient',$a->config[$uid])) {
 		$settings = $a->config[$uid]['transient'];
@@ -2119,12 +2149,12 @@ function build_sync_packet($uid = 0, $packet = null, $groups_changed = false) {
 	}
 
 	if($groups_changed) {
-		$r = q("select * from groups where uid = %d",
+		$r = q("select hash as collection, visible, deleted, name from groups where uid = %d",
 			intval($uid)
 		);
 		if($r)
 			$info['collections'] = $r;
-		$r = q("select * from group_member where uid = %d",
+		$r = q("select groups.hash as collection, group_member.xchan as member from groups left join group_member on groups.id = group_member.gid where group_member.uid = %d",
 			intval($uid)
 		);
 		if($r)
@@ -2212,12 +2242,28 @@ function process_channel_sync_delivery($sender,$arr,$deliveries) {
 		}
 
 
+
 		if(array_key_exists('abook',$arr) && is_array($arr['abook']) && count($arr['abook'])) {
 
 			$disallowed = array('abook_id','abook_account','abook_channel');
 
 			$clean = array();
 			foreach($arr['abook'] as $abook) {
+
+				if($abook['abook_xchan'] && $abook['entry_deleted']) {
+					logger('process_channel_sync_delivery: removing abook entry for ' . $abook['abook_xchan']);
+					require_once('include/Contact.php');
+					
+					$r = q("select abook_id from abook where abook_xchan = '%s' and abook_channel = %d and not ( abook_flags & %d ) limit 1",
+						dbesc($abook['abook_xchan']),
+						intval($channel['channel_id']),
+						intval(ABOOK_FLAG_SELF)
+					);
+					if($r)
+						contact_remove($channel['channel_id'],$r[0]['abook_id']);
+
+					continue;
+				}
 
 				// Perform discovery if the referenced xchan hasn't ever been seen on this hub.
 				// This relies on the undocumented behaviour that red sites send xchan info with the abook
@@ -2273,6 +2319,144 @@ function process_channel_sync_delivery($sender,$arr,$deliveries) {
 						$r = dbq("UPDATE abook set " . dbesc($k) . " = '" . dbesc($v) 
 						. "' where abook_xchan = '" . dbesc($clean['abook_xchan']) . "' and abook_channel = " . intval($channel['channel_id']) 
 						. " limit 1");
+					}
+				}
+			}
+		}
+
+		// sync collections (privacy groups) oh joy...
+
+		if(array_key_exists('collections',$arr) && is_array($arr['collections']) && count($arr['collections'])) {
+			$x = q("select * from groups where uid = %d",
+				intval($channel['channel_id'])
+			);
+			foreach($arr['collections'] as $cl) {
+				$found = false;
+				if($x) {
+					foreach($x as $y) {
+						if($cl['collection'] == $y['hash']) {
+							$found = true;
+							break;
+						}
+					}
+					if($found) {
+						if(($y['name'] != $cl['name']) 
+							|| ($y['visible'] != $cl['visible']) 
+							|| ($y['deleted'] != $cl['deleted'])) {
+							q("update groups set name = '%s', visible = %d, deleted = %d where hash = '%s' and uid = %d limit 1",
+								dbesc($cl['name']),
+								intval($cl['visible']),
+								intval($cl['deleted']),
+								dbesc($cl['hash']),
+								intval($channel['channel_id'])
+							);
+						}
+						if(intval($cl['deleted']) && (! intval($y['deleted']))) {
+							q("delete from group_member where gid = %d",
+								intval($y['id'])
+							);  
+						}
+					}
+				}
+				if(! $found) {
+					$r = q("INSERT INTO `groups` ( hash, uid, visible, deleted, name )
+						VALUES( '%s', %d, %d, %d, '%s' ) ",
+						dbesc($cl['collection']),
+						intval($channel['channel_id']),
+						intval($cl['visible']),
+						intval($cl['deleted']),
+           				dbesc($cl['name'])
+       				);
+				}
+
+				// now look for any collections locally which weren't in the list we just received.
+				// They need to be removed by marking deleted and removing the members.
+				// This shouldn't happen except for clones created before this function was written.
+
+				if($x) {
+					$found_local = false;
+					foreach($x as $y) {
+						foreach($arr['collections'] as $cl) {
+							if($cl['collection'] == $y['hash']) {
+								$found_local = true;
+								break;
+							}
+						}
+						if(! $found_local) {			
+							q("delete from group_member where gid = %d",
+								intval($y['id'])
+							);  
+							q("update groups set deleted = 1 where id = %d and uid = %d limit 1",
+								intval($y['id']),
+								intval($channel['channel_id'])
+							);
+						}
+					}
+				}
+			}
+
+			// reload the group list with any updates
+			$x = q("select * from groups where uid = %d",
+				intval($channel['channel_id'])
+			);
+
+			// now sync the members
+
+			if(array_key_exists('collection_members',$arr) && 
+				is_array($arr['collection_members']) && count($arr['collection_members'])) {
+
+				// first sort into groups keyed by the group hash
+				$members = array();
+				foreach($arr['collection_members'] as $cm) {
+					if(! array_key_exists($cm['collection'],$members))
+						$members[$cm['collection']] = array();
+					$members[$cm['collection']][] = $cm['member'];	
+				}
+
+				// our group list is already synchronised
+				if($x) {
+					foreach($x as $y) {
+
+						// for each group, loop on members list we just received
+						foreach($members[$y['hash']] as $member) {
+							$found = false;
+							$z = q("select xchan from group_member where gid = %d and uid = %d and xchan = '%s' limit 1",
+								intval($y['id']),
+								intval($channel['channel_id']),
+								dbesc($member)
+							);
+							if($z)
+								$found = true;
+
+							// if somebody is in the group that wasn't before - add them
+
+							if(! $found) {
+								q("INSERT INTO `group_member` (`uid`, `gid`, `xchan`)
+									VALUES( %d, %d, '%s' ) ",
+									intval($channel['channel_id']),
+									intval($y['id']),
+									dbesc($member)
+								);
+							}
+						}
+
+						// now retrieve a list of members we have on this site
+						$m = q("select xchan from group_member where gid = %d and uid = %d",
+							intval($y['id']),
+							intval($channel['channel_id'])
+						);
+						if($m) {
+							foreach($m as $mm) {
+								// if the local existing member isn't in the list we just received - remove them
+								if(! in_array($mm['xchan'],$members[$y['hash']])) {
+									q("delete from group_member where xchan = '%s' and gid = %d and uid = %d limit 1",
+										dbesc($mm['xchan']),
+										intval($y['id']),
+										intval($channel['channel_id'])
+									);
+								}
+							}
+						}
 					}
 				}
 			}
@@ -2336,7 +2520,7 @@ function get_rpost_path($observer) {
 }
 
 function import_author_zot($x) {
-	$hash = base64url_encode(hash('whirlpool',$x['guid'] . $x['guid_sig'], true));
+	$hash = make_xchan_hash($x['guid'],$x['guid_sig']);
 	$r = q("select hubloc_url from hubloc where hubloc_guid = '%s' and hubloc_guid_sig = '%s' and (hubloc_flags & %d) limit 1",
 		dbesc($x['guid']),
 		dbesc($x['guid_sig']),
