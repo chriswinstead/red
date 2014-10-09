@@ -117,8 +117,11 @@ function zot_build_packet($channel,$type = 'notify',$recipients = null, $remote_
 		'version' => ZOT_REVISION
 	);
 
-	if($recipients)
+	if($recipients) {
+		for($x = 0; $x < count($recipients); $x ++)
+			unset($recipients[$x]['hash']);
 		$data['recipients'] = $recipients;
+	}
 
 	if($secret) {
 		$data['secret'] = $secret; 
@@ -198,11 +201,17 @@ function zot_finger($webbie,$channel,$autofallback = true) {
 
 	if($r) {
 		$url = $r[0]['hubloc_url'];
+
+		if($r[0]['hubloc_network'] && $r[0]['hubloc_network'] !== 'zot') {
+			logger('zot_finger: alternate network: ' . $webbie);
+			return array('success' => false);
+		}		
 	}
 	else {
 		$url = 'https://' . $host;
 	}
-	
+
+			
 	$rhs = '/.well-known/zot-info';
 	$https = ((strpos($url,'https://') === 0) ? true : false);
 
@@ -270,6 +279,11 @@ function zot_finger($webbie,$channel,$autofallback = true) {
  */
 
 function zot_refresh($them,$channel = null, $force = false) {
+
+	if(array_key_exists('xchan_network',$them) && ($them['xchan_network'] !== 'zot')) {
+		logger('zot_refresh: not got zot. ' . $them['xchan_name']);
+		return true;
+	}
 
 	logger('zot_refresh: them: ' . print_r($them,true), LOGGER_DATA);
 	if($channel)
@@ -507,6 +521,22 @@ function zot_refresh($them,$channel = null, $force = false) {
 function zot_gethub($arr) {
 
 	if($arr['guid'] && $arr['guid_sig'] && $arr['url'] && $arr['url_sig']) {
+
+		$blacklisted = false;
+		$bl1 = get_config('system','blacklisted_sites');
+		if(is_array($bl1) && $bl1) {
+			foreach($bl1 as $bl) {
+				if($bl && strpos($arr['url'],$bl) !== false) {
+					$blacklisted = true;
+					break;
+				}
+			}
+		}
+		if($blacklisted) {
+			logger('zot_gethub: blacklisted site: ' . $arr['url']);
+			return null;
+		}
+
 		$r = q("select * from hubloc 
 				where hubloc_guid = '%s' and hubloc_guid_sig = '%s' 
 				and hubloc_url = '%s' and hubloc_url_sig = '%s'
@@ -625,6 +655,10 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED, $ud_arr = null) {
 		return $ret;
 	}
 
+	if(! ($arr['guid'] && $arr['guid_sig'])) {
+		logger('import_xchan: no identity information provided. ' . print_r($arr,true));
+		return $ret;
+	}
 
 	$xchan_hash = make_xchan_hash($arr['guid'],$arr['guid_sig']);
 	$import_photos = false;
@@ -939,12 +973,13 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED, $ud_arr = null) {
 				);
 			}
 			logger('import_xchan: new hub: ' . $location['url']);
-			$r = q("insert into hubloc ( hubloc_guid, hubloc_guid_sig, hubloc_hash, hubloc_addr, hubloc_flags, hubloc_url, hubloc_url_sig, hubloc_host, hubloc_callback, hubloc_sitekey, hubloc_updated, hubloc_connected)
-					values ( '%s','%s','%s','%s', %d ,'%s','%s','%s','%s','%s','%s','%s')",
+			$r = q("insert into hubloc ( hubloc_guid, hubloc_guid_sig, hubloc_hash, hubloc_addr, hubloc_network, hubloc_flags, hubloc_url, hubloc_url_sig, hubloc_host, hubloc_callback, hubloc_sitekey, hubloc_updated, hubloc_connected)
+					values ( '%s','%s','%s','%s', '%s', %d ,'%s','%s','%s','%s','%s','%s','%s')",
 				dbesc($arr['guid']),
 				dbesc($arr['guid_sig']),
 				dbesc($xchan_hash),
 				dbesc($location['address']),
+				dbesc('zot'),
 				intval((intval($location['primary'])) ? HUBLOC_FLAGS_PRIMARY : 0),
 				dbesc($location['url']),
 				dbesc($location['url_sig']),
@@ -985,8 +1020,22 @@ function import_xchan($arr,$ud_flags = UPDATE_FLAGS_UPDATED, $ud_arr = null) {
 
 	// Are we a directory server of some kind?
 
+	$other_realm = false;
+	$realm = get_directory_realm();
+	if(array_key_exists('site',$arr) 
+		&& array_key_exists('realm',$arr['site']) 
+		&& (strpos($arr['site']['realm'],$realm) === false))
+		$other_realm = true;
+
 	if($dirmode != DIRECTORY_MODE_NORMAL) {
-		if(array_key_exists('profile',$arr) && is_array($arr['profile'])) {
+
+		// We're some kind of directory server. However we can only add directory information
+		// if the entry is in the same realm (or is a sub-realm). Sub-realms are denoted by 
+		// including the parent realm in the name. e.g. 'RED_GLOBAL:foo' would allow an entry to 
+		// be in directories for the local realm (foo) and also the RED_GLOBAL realm.
+
+
+		if(array_key_exists('profile',$arr) && is_array($arr['profile']) && (! $other_realm)) {
 			$profile_changed = import_directory_profile($xchan_hash,$arr['profile'],$address,$ud_flags, 1);
 			if($profile_changed) {
 				$what .= 'profile ';
@@ -1426,7 +1475,7 @@ function allowed_public_recips($msg) {
 
 	$hash = make_xchan_hash($msg['notify']['sender']['guid'],$msg['notify']['sender']['guid_sig']);
 
-	if($scope === 'public' || $scope === 'network: red')
+	if($scope === 'public' || $scope === 'network: red' || $scope === 'authenticated')
 		return $recips;
 
 	if(strpos($scope,'site:') === 0) {
@@ -1546,12 +1595,13 @@ function process_delivery($sender,$arr,$deliveries,$relay,$public = false) {
 			$arr['aid'] = $channel['channel_account_id'];
 			$arr['uid'] = $channel['channel_id'];
 			$item_result = item_store($arr);
-			$item_id = $item_result['item_id'];
-			$parr = array('item_id' => $item_id,'item' => $arr,'sender' => $sender,'channel' => $channel);
-			call_hooks('activity_received',$parr);
-
-			add_source_route($item_id,$sender['hash']);
-
+			$item_id = 0;
+			if($item_result['success']) {
+				$item_id = $item_result['item_id'];
+				$parr = array('item_id' => $item_id,'item' => $arr,'sender' => $sender,'channel' => $channel);
+				call_hooks('activity_received',$parr);
+				add_source_route($item_id,$sender['hash']);
+			}
 			$result[] = array($d['hash'],(($item_id) ? 'posted' : 'storage failed:' . $item_result['message']),$channel['channel_name'] . ' <' . $channel['channel_address'] . '@' . get_app()->get_hostname() . '>',$arr['mid']);
 		}
 
@@ -1741,8 +1791,6 @@ function process_mail_delivery($sender,$arr,$deliveries) {
 
 function process_profile_delivery($sender,$arr,$deliveries) {
 
-	// deliveries is irrelevant, what to do about birthday notification....?
-
 	logger('process_profile_delivery', LOGGER_DEBUG);
 
 	$r = q("select xchan_addr from xchan where xchan_hash = '%s' limit 1",
@@ -1814,7 +1862,7 @@ function import_directory_profile($hash,$profile,$addr,$ud_flags = UPDATE_FLAGS_
 		$update = false;
 		foreach($r[0] as $k => $v) {
 			if((array_key_exists($k,$arr)) && ($arr[$k] != $v)) {
-				logger('import_directory_profile: update' . $k . ' => ' . $arr[$k]);
+				logger('import_directory_profile: update ' . $k . ' => ' . $arr[$k]);
 				$update = true;
 				break;
 			}
@@ -1856,7 +1904,7 @@ function import_directory_profile($hash,$profile,$addr,$ud_flags = UPDATE_FLAGS_
 	}
 	else {
 		$update = true;
-		logger('import_directory_profile: new profile');
+		logger('import_directory_profile: new profile ');
 		$x = q("insert into xprof (xprof_hash, xprof_desc, xprof_dob, xprof_age, xprof_gender, xprof_marital, xprof_sexual, xprof_locale, xprof_region, xprof_postcode, xprof_country, xprof_about, xprof_homepage, xprof_hometown, xprof_keywords) values ('%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ",
 			dbesc($arr['xprof_hash']),
 			dbesc($arr['xprof_desc']),
@@ -2012,6 +2060,7 @@ function import_site($arr,$pubkey) {
 	$url = htmlspecialchars($arr['url'],ENT_COMPAT,'UTF-8',false);
 	$sellpage = htmlspecialchars($arr['sellpage'],ENT_COMPAT,'UTF-8',false);
 	$site_location = htmlspecialchars($arr['location'],ENT_COMPAT,'UTF-8',false);
+	$site_realm = htmlspecialchars($arr['realm'],ENT_COMPAT,'UTF-8',false);
 
 	if($exists) {
 		if(($siterecord['site_flags'] != $site_directory)
@@ -2019,13 +2068,14 @@ function import_site($arr,$pubkey) {
 			|| ($siterecord['site_directory'] != $directory_url)
 			|| ($siterecord['site_sellpage'] != $sellpage)
 			|| ($siterecord['site_location'] != $site_location)
-			|| ($siterecord['site_register'] != $register_policy)) {
+			|| ($siterecord['site_register'] != $register_policy)
+			|| ($siterecord['site_realm'] != $site_realm)) {
 			$update = true;
 
 //			logger('import_site: input: ' . print_r($arr,true));
 //			logger('import_site: stored: ' . print_r($siterecord,true));
 
-			$r = q("update site set site_location = '%s', site_flags = %d, site_access = %d, site_directory = '%s', site_register = %d, site_update = '%s', site_sellpage = '%s'
+			$r = q("update site set site_location = '%s', site_flags = %d, site_access = %d, site_directory = '%s', site_register = %d, site_update = '%s', site_sellpage = '%s', site_realm = '%s'
 				where site_url = '%s' limit 1",
 				dbesc($site_location),
 				intval($site_directory),
@@ -2034,6 +2084,7 @@ function import_site($arr,$pubkey) {
 				intval($register_policy),
 				dbesc(datetime_convert()),
 				dbesc($sellpage),
+				dbesc($site_realm),
 				dbesc($url)
 			);
 			if(! $r) {
@@ -2043,8 +2094,8 @@ function import_site($arr,$pubkey) {
 	}
 	else {
 		$update = true;
-		$r = q("insert into site ( site_location, site_url, site_access, site_flags, site_update, site_directory, site_register, site_sellpage )
-			values ( '%s', '%s', %d, %d, '%s', '%s', %d, '%s' )",
+		$r = q("insert into site ( site_location, site_url, site_access, site_flags, site_update, site_directory, site_register, site_sellpage, site_realm )
+			values ( '%s', '%s', %d, %d, '%s', '%s', %d, '%s', '%s' )",
 			dbesc($site_location),
 			dbesc($url),
 			intval($access_policy),
@@ -2052,7 +2103,8 @@ function import_site($arr,$pubkey) {
 			dbesc(datetime_convert()),
 			dbesc($directory_url),
 			intval($register_policy),
-			dbesc($sellpage)
+			dbesc($sellpage),
+			dbesc($site_realm)
 		);
 		if(! $r) {
 			logger('import_site: record create failed. ' . print_r($arr,true));

@@ -35,7 +35,7 @@ function removeme_post(&$a) {
 
 	$global_remove = intval($_POST['global']);
 
-	channel_remove(local_user(),1 - $global_remove);
+	channel_remove(local_user(),1 - $global_remove,true);
 
 }
 

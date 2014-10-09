@@ -262,6 +262,8 @@ function localize_item(&$item){
 
 		$item['body'] = sprintf($txt, $A, t($verb));
 	}
+
+
 /*
 // FIXME store parent item as object or target
 // (and update to json storage)
@@ -363,6 +365,17 @@ function localize_item(&$item){
 	//	if($sparkle)
 //			$item['plink'] = $y . '?f=&url=' . $item['plink'];
 //	} 
+
+	// if item body was obscured and we changed it, re-obscure it
+	// FIXME - we need a better filter than just the string 'data'; try and
+	// match the fact that it's json encoded
+
+	if(($item['item_flags'] & ITEM_OBSCURED) 
+		&& strlen($item['body']) && (! strpos($item['body'],'data'))) {
+		$item['body']  = json_encode(crypto_encapsulate($item['body'],get_config('system','pubkey')));
+	}
+	
+
 }
 
 /**
@@ -902,6 +915,7 @@ function item_photo_menu($item){
 	$contact_url="";
 	$pm_url="";
 	$vsrc_link = "";
+	$follow_url = "";
 
 	if(local_user()) {
 		$ssl_state = true;
@@ -923,6 +937,9 @@ function item_photo_menu($item){
 
 	if($a->contacts && array_key_exists($item['author_xchan'],$a->contacts))
 		$contact = $a->contacts[$item['author_xchan']];
+	else
+		if(local_user() && $item['author']['xchan_addr'])
+			$follow_url = z_root() . '/follow/?f=&url=' . $item['author']['xchan_addr'];
 
 	if($contact) {
 		$poke_link = $a->get_baseurl($ssl_state) . '/poke/?f=&c=' . $contact['abook_id'];
@@ -940,6 +957,7 @@ function item_photo_menu($item){
 		t("View Profile") => $profile_link,
 		t("View Photos") => $photos_link,
 		t("Matrix Activity") => $posts_link,
+		t("Connect") => $follow_url,
 		t("Edit Contact") => $contact_url,
 		t("Send PM") => $pm_url,
 		t("Poke") => $poke_link
@@ -1399,7 +1417,7 @@ function network_tabs() {
 	if(! get_config('system','disable_discover_tab')) {
 		$tabs[] = array(
 			'label' => t('Discover'),
-			'url'=>$a->get_baseurl(true) . '/' . $cmd . '?f=&fh=1' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''),
+			'url'=>z_root() . '/' . $cmd . '?f=&fh=1' ,
 			'sel'=> $public_active,
 			'title'=> t('Imported public streams'),
 		);
@@ -1407,14 +1425,14 @@ function network_tabs() {
 
 	$tabs[] = array(
 		'label' => t('Commented Order'),
-		'url'=>$a->get_baseurl(true) . '/' . $cmd . '?f=&order=comment' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''), 
+		'url'=>z_root() . '/' . $cmd . '?f=&order=comment' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''), 
 		'sel'=>$all_active,
 		'title'=> t('Sort by Comment Date'),
 	);
 	
 	$tabs[] = array(
 		'label' => t('Posted Order'),
-		'url'=>$a->get_baseurl(true) . '/' . $cmd . '?f=&order=post' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''), 
+		'url'=>z_root() . '/' . $cmd . '?f=&order=post' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''), 
 		'sel'=>$postord_active,
 		'title' => t('Sort by Post Date'),
 	);
@@ -1422,7 +1440,7 @@ function network_tabs() {
 	if(feature_enabled(local_user(),'personal_tab')) {
 		$tabs[] = array(
 			'label' => t('Personal'),
-			'url' => $a->get_baseurl(true) . '/' . $cmd . '?f=' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . '&conv=1',
+			'url' => z_root() . '/' . $cmd . '?f=' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . '&conv=1',
 			'sel' => $conv_active,
 			'title' => t('Posts that mention or involve you'),
 		);
@@ -1431,7 +1449,7 @@ function network_tabs() {
 	if(feature_enabled(local_user(),'new_tab')) { 
 		$tabs[] = array(
 			'label' => t('New'),
-			'url' => $a->get_baseurl(true) . '/' . $cmd . '?f=' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . '&new=1' . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''),
+			'url' => z_root() . '/' . $cmd . '?f=' . ((x($_GET,'cid')) ? '&cid=' . $_GET['cid'] : '') . '&new=1' . ((x($_GET,'gid')) ? '&gid=' . $_GET['gid'] : ''),
 			'sel' => $new_active,
 			'title' => t('Activity Stream - by date'),
 		);
@@ -1440,7 +1458,7 @@ function network_tabs() {
 	if(feature_enabled(local_user(),'star_posts')) {
 		$tabs[] = array(
 			'label' => t('Starred'),
-			'url'=>$a->get_baseurl(true) . '/' . $cmd . ((x($_GET,'cid')) ? '/?f=&cid=' . $_GET['cid'] : '') . '&star=1',
+			'url'=>z_root() . '/' . $cmd . ((x($_GET,'cid')) ? '/?f=&cid=' . $_GET['cid'] : '') . '&star=1',
 			'sel'=>$starred_active,
 			'title' => t('Favourite Posts'),
 		);
@@ -1450,7 +1468,7 @@ function network_tabs() {
 	if(feature_enabled(local_user(),'spam_filter')) {
 		$tabs[] = array(
 			'label' => t('Spam'),
-			'url'=>$a->get_baseurl(true) . '/network?f=&spam=1',
+			'url'=> z_root() . '/network?f=&spam=1',
 			'sel'=> $spam_active,
 			'title' => t('Posts flagged as SPAM'),
 		);

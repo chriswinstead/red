@@ -162,7 +162,7 @@ function user_remove($uid) {
 
 }
 
-function account_remove($account_id,$local = true) {
+function account_remove($account_id,$local = true,$unset_session=true) {
 
 	logger('account_remove: ' . $account_id);
 
@@ -185,6 +185,7 @@ function account_remove($account_id,$local = true) {
 	$r = q("select * from account where account_id = %d limit 1",
 		intval($account_id)
 	);
+	$account_email=$r[0]['account_email'];
 
 	if(! $r) {
 		logger('account_remove: No account with id: ' . $account_id);
@@ -196,7 +197,7 @@ function account_remove($account_id,$local = true) {
 	);
 	if($x) {
 		foreach($x as $xx) {
-			channel_remove($xx['channel_id'],$local);
+			channel_remove($xx['channel_id'],$local,false);
 		}
 	}
 
@@ -204,11 +205,17 @@ function account_remove($account_id,$local = true) {
 		intval($account_id)
 	);
 
+	if ($unset_session) {
+		unset($_SESSION['authenticated']);
+		unset($_SESSION['uid']);
+		notice( sprintf(t("User '%s' deleted"),$account_email) . EOL);
+		goaway(get_app()->get_baseurl());
+	}
 	return $r;
 
 }
 
-function channel_remove($channel_id, $local = true) {
+function channel_remove($channel_id, $local = true, $unset_session=true) {
 
 	if(! $channel_id)
 		return;
@@ -238,12 +245,12 @@ function channel_remove($channel_id, $local = true) {
 			intval($channel_id)
 		);
 
-		$r = q("update hubloc set hubloc_flags = hubloc_flags | %d where hubloc_hash = '%s'",
+		$r = q("update hubloc set hubloc_flags = (hubloc_flags | %d) where hubloc_hash = '%s'",
 			intval(HUBLOC_FLAGS_DELETED),
 			dbesc($channel['channel_hash'])
 		);
 
-		$r = q("update xchan set xchan_flags = xchan_flags | %d where xchan_hash = '%s'",
+		$r = q("update xchan set xchan_flags = (xchan_flags | %d) where xchan_hash = '%s'",
 			intval(XCHAN_FLAGS_DELETED),
 			dbesc($channel['channel_hash'])
 		);
@@ -267,7 +274,7 @@ function channel_remove($channel_id, $local = true) {
 	q("DELETE FROM `spam` WHERE `uid` = %d", intval($channel_id));
 
 
-	q("delete from abook where abook_xchan = '%s' and abook_flags & %d limit 1",
+	q("delete from abook where abook_xchan = '%s' and (abook_flags & %d) limit 1",
 		dbesc($channel['channel_hash']),
 		dbesc(ABOOK_FLAG_SELF)
 	);
@@ -278,13 +285,13 @@ function channel_remove($channel_id, $local = true) {
 		intval($channel_id)
 	);
 
-	$r = q("update hubloc set hubloc_flags = hubloc_flags | %d where hubloc_hash = '%s' and hubloc_url = '%s' ",
+	$r = q("update hubloc set hubloc_flags = (hubloc_flags | %d) where hubloc_hash = '%s' and hubloc_url = '%s' ",
 		intval(HUBLOC_FLAGS_DELETED),
 		dbesc($channel['channel_hash']),
 		dbesc(z_root())
 	);
 
-	$r = q("update xchan set xchan_flags = xchan_flags | %d where xchan_hash = '%s' ",
+	$r = q("update xchan set xchan_flags = (xchan_flags | %d) where xchan_hash = '%s' ",
 		intval(XCHAN_FLAGS_DELETED),
 		dbesc($channel['channel_hash'])
 	);
@@ -292,7 +299,7 @@ function channel_remove($channel_id, $local = true) {
 
 	proc_run('php','include/directory.php',$channel_id);
 
-	if($channel_id == local_user()) {
+	if($channel_id == local_user() && $unset_session) {
 		unset($_SESSION['authenticated']);
 		unset($_SESSION['uid']);
 		goaway($a->get_baseurl());
@@ -316,7 +323,7 @@ function mark_orphan_hubsxchans() {
 		return;
 
     $r = q("update hubloc set hubloc_status = (hubloc_status | %d) where not (hubloc_status & %d) 
-		and hubloc_connected < utc_timestamp() - interval 36 day",
+		and hubloc_network != 'zot' and hubloc_connected < utc_timestamp() - interval 36 day",
         intval(HUBLOC_OFFLINE),
         intval(HUBLOC_OFFLINE)
     );
@@ -428,12 +435,12 @@ function remove_all_xchan_resources($xchan, $channel_id = 0) {
 
 			// directory servers need to keep the record around for sync purposes - mark it deleted
 
-	        $r = q("update hubloc set hubloc_flags = hubloc_flags | %d where hubloc_hash = '%s'",
+	        $r = q("update hubloc set hubloc_flags = (hubloc_flags | %d) where hubloc_hash = '%s'",
     	        intval(HUBLOC_FLAGS_DELETED),
         	    dbesc($xchan)
         	);
 
-        	$r = q("update xchan set xchan_flags = xchan_flags | %d where xchan_hash = '%s'",
+        	$r = q("update xchan set xchan_flags = (xchan_flags | %d) where xchan_hash = '%s'",
             	intval(XCHAN_FLAGS_DELETED),
             	dbesc($xchan)
         	);
@@ -477,7 +484,7 @@ function contact_remove($channel_id, $abook_id) {
 	);
 	if($r) {
 		foreach($r as $rr) {
-			drop_item($rr,false);
+			drop_item($rr['id'],false);
 		}
 	}
 	

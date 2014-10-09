@@ -1,6 +1,6 @@
 <?php
 
-define( 'UPDATE_VERSION' , 1121 );
+define( 'UPDATE_VERSION' , 1129 );
 
 /**
  *
@@ -1359,4 +1359,101 @@ ADD INDEX ( `public_policy` )");
 	return UPDATE_FAILED;
 }
 
+
+function update_r1121() {
+	$r = q("ALTER TABLE `site` ADD `site_realm` CHAR( 255 ) NOT NULL DEFAULT '',
+ADD INDEX ( `site_realm` )");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+
+function update_r1122() {
+	$r = q("update site set site_realm = '%s' where true",
+		dbesc(DIRECTORY_REALM)
+	);
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1123() {
+	$r1 = q("ALTER TABLE `hubloc` ADD `hubloc_network` CHAR( 32 ) NOT NULL DEFAULT '' AFTER `hubloc_addr` ,
+ADD INDEX ( `hubloc_network` )");
+	$r2 = q("update hubloc set hubloc_network = 'zot' where true");
+
+	if($r1 && $r2)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1124() {
+	$r1 = q("CREATE TABLE IF NOT EXISTS `sign` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `iid` int(10) unsigned NOT NULL DEFAULT '0',
+  `retract_iid` int(10) unsigned NOT NULL DEFAULT '0',
+  `signed_text` mediumtext NOT NULL,
+  `signature` text NOT NULL,
+  `signer` char(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `iid` (`iid`),
+  KEY `retract_iid` (`retract_iid`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 ");
+
+	$r2 = q("CREATE TABLE IF NOT EXISTS `conv` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `guid` char(255) NOT NULL,
+  `recips` mediumtext NOT NULL,
+  `uid` int(11) NOT NULL,
+  `creator` char(255) NOT NULL,
+  `created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updated` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `subject` mediumtext NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `created` (`created`),
+  KEY `updated` (`updated`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 ");
+
+	if($r1 && $r2)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+
+}
+
+function update_r1125() {
+	$r = q("ALTER TABLE `profdef` ADD `field_inputs` MEDIUMTEXT NOT NULL DEFAULT ''");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
+
+
+function update_r1126() {
+	$r = q("ALTER TABLE `mail` ADD `convid` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `id` ,
+ADD INDEX ( `convid` )");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
+
+function update_r1127() {
+	$r = q("ALTER TABLE `item` ADD `comments_closed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00' AFTER `changed` ,
+ADD INDEX ( `comments_closed` ), ADD INDEX ( `changed` ) ");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
+
+function update_r1128() {
+	$r = q("ALTER TABLE `item` ADD `diaspora_meta` MEDIUMTEXT NOT NULL DEFAULT '' AFTER `sig` ");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
 

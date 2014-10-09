@@ -124,7 +124,7 @@ function translate_system_apps(&$arr) {
 		'Bookmarks' => t('Bookmarks'),
 		'Address Book' => t('Address Book'),
 		'Login' => t('Login'),
-		'Channel Select' => t('Channel Select'), 
+		'Channel Manager' => t('Channel Manager'), 
 		'Matrix' => t('Matrix'), 
 		'Settings' => t('Settings'),
 		'Files' => t('Files'),
@@ -141,7 +141,13 @@ function translate_system_apps(&$arr) {
 		'Chat' => t('Chat'),
 		'Search' => t('Search'),
 		'Probe' => t('Probe'),
-		'Suggest' => t('Suggest')
+		'Suggest' => t('Suggest'),
+		'Random Channel' => t('Random Channel'),
+		'Invite' => t('Invite'),
+		'Features' => t('Features'),
+		'Language' => t('Language'),
+		'Post' => t('Post'),
+		'Profile Photo' => t('Profile Photo')
 	);
 
 	if(array_key_exists($arr['name'],$apps))
@@ -462,3 +468,5 @@ function papp_encode($papp) {
 	return chunk_split(base64_encode(json_encode($papp)),72,"\n");
 
 }
+
+

@@ -30,6 +30,26 @@ function find_upstream_directory($dirmode) {
 	return array('url' => $preferred);
 }
 
+function check_upstream_directory() {
+	/**
+	* Directories may come and go over time.  We will need to check that our 
+	* directory server is still valid occasionally, and reset to something that
+	* is if our directory has gone offline for any reason
+	*/
+	$directory = get_config('system','directory_server');
+	if ($directory) {
+		$r = q("select * from site where site_url = '%s' and (site_flags & %d) ",
+			dbesc($directory),
+			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY|DIRECTORY_MODE_STANDALONE)
+		);
+	}
+	// If we've got something, it's still a directory.  If we haven't, we need to reset and let find_upstream_directory() fix it
+		if (! $r) {
+			set_config('system','directory_server','');
+		}
+	return;
+}
+	
 function dir_sort_links() {
 
 	$o = replace_macros(get_markup_template('dir_sort_links.tpl'), array(
@@ -64,26 +84,40 @@ function sync_directories($dirmode) {
 	if($dirmode == DIRECTORY_MODE_STANDALONE || $dirmode == DIRECTORY_MODE_NORMAL)
 		return;
 
-	$r = q("select * from site where (site_flags & %d) and site_url != '%s'",
-		intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
-		dbesc(z_root())
-	);
+	$realm = get_directory_realm();
+	if($realm == DIRECTORY_REALM) {
+		$r = q("select * from site where (site_flags & %d) and site_url != '%s' and ( site_realm = '%s' or site_realm = '') ",
+			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
+			dbesc(z_root()),
+			dbesc($realm)
+		);
+	}
+	else {
+		$r = q("select * from site where (site_flags & %d) and site_url != '%s' and site_realm like '%s' ",
+			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
+			dbesc(z_root()),
+			dbesc(protect_sprintf('%' . $realm . '%'))
+		);
+	}
 
 	// If there are no directory servers, setup the fallback master
+	// FIXME - what to do if we're in a different realm?
 
 	if((! $r) && (z_root() != DIRECTORY_FALLBACK_MASTER)) {
 		$r = array(
 			'site_url' => DIRECTORY_FALLBACK_MASTER,
 			'site_flags' => DIRECTORY_MODE_PRIMARY,
 			'site_update' => '0000-00-00 00:00:00', 
-			'site_directory' => DIRECTORY_FALLBACK_MASTER . '/dirsearch'
+			'site_directory' => DIRECTORY_FALLBACK_MASTER . '/dirsearch',
+			'site_realm' => DIRECTORY_REALM
 		);
-		$x = q("insert into site ( site_url, site_flags, site_update, site_directory )
-			values ( '%s', %d', '%s', '%s' ) ",
+		$x = q("insert into site ( site_url, site_flags, site_update, site_directory, site_realm )
+			values ( '%s', %d', '%s', '%s', '%s' ) ",
 			dbesc($r[0]['site_url']),
 			intval($r[0]['site_flags']),
 			dbesc($r[0]['site_update']),
-			dbesc($r[0]['site_directory'])
+			dbesc($r[0]['site_directory']),
+			dbesc($r[0]['site_realm'])
 		);
 
 		$r = q("select * from site where (site_flags & %d) and site_url != '%s'",

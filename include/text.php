@@ -508,8 +508,14 @@ function logger($msg,$level = 0) {
 
 	if((! $debugging) || (! $logfile) || ($level > $loglevel))
 		return;
-	
-	@file_put_contents($logfile, datetime_convert() . ':' . session_id() . ' ' . $msg . "\n", FILE_APPEND);
+
+	$where = '';
+	if(version_compare(PHP_VERSION,'5.4.0') >= 0) {
+		$stack = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,2);	
+		$where = basename($stack[0]['file']) . ':' . $stack[0]['line'] . ':' . $stack[1]['function'] . ': ';
+	}
+
+	@file_put_contents($logfile, datetime_convert() . ':' . session_id() . ' ' . $where . $msg . "\n", FILE_APPEND);
 	return;
 }
 
@@ -1002,6 +1008,7 @@ function smilies($s, $sample = false) {
 		':facepalm',
 		':like',
 		':dislike',
+		'red#matrix',
 		'red#',
 		'r#'
 	);
@@ -1039,6 +1046,7 @@ function smilies($s, $sample = false) {
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/smiley-facepalm.gif" alt=":facepalm" />',
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/like.gif" alt=":like" />',
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/dislike.gif" alt=":dislike" />',
+		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="red#matrix" />matrix</strong></a>',
 		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="red#" />matrix</strong></a>',
 		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="r#" />matrix</strong></a>'
 
@@ -1863,6 +1871,11 @@ function xchan_query(&$items,$abook = true) {
 			$chans = q("select xchan.*,hubloc.* from xchan left join hubloc on hubloc_hash = xchan_hash
 				where xchan_hash in (" . implode(',', $arr) . ") and ( hubloc_flags & " . intval(HUBLOC_FLAGS_PRIMARY) . " )");
 		}
+		$xchans = q("select * from xchan where xchan_hash in (" . implode(',',$arr) . ") and xchan_network in ('rss','unknown')");
+		if(! $chans)
+			$chans = $xchans;
+		else
+			$chans = array_merge($xchans,$chans); 
 	}
 	if($items && count($items) && $chans && count($chans)) {
 		for($x = 0; $x < count($items); $x ++) {
@@ -2019,4 +2032,5 @@ function in_arrayi($needle, $haystack) {
 function normalise_openid($s) {
 	return trim(str_replace(array('http://','https://'),array('',''),$s),'/');
 }
+
 

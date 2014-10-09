@@ -203,7 +203,7 @@ function zfinger_init(&$a) {
 			$permissions['connected'] = true;
 	}
 
-	$ret['permissions'] = (($ztarget && $zkey) ? aes_encapsulate(json_encode($permissions),$zkey) : $permissions);
+	$ret['permissions'] = (($ztarget && $zkey) ? crypto_encapsulate(json_encode($permissions),$zkey) : $permissions);
 
 	if($permissions['view_profile'])
 		$ret['profile']  = $profile;
@@ -273,7 +273,6 @@ function zfinger_init(&$a) {
 		if($access_policy == ACCESS_TIERED)
 			$ret['site']['access_policy'] = 'tiered';
 
-		require_once('include/account.php');
 		$ret['site']['accounts'] = account_total();
 	
 		require_once('include/identity.php');
@@ -297,6 +296,7 @@ function zfinger_init(&$a) {
 		$ret['site']['sitename'] = get_config('system','sitename');
 		$ret['site']['sellpage'] = get_config('system','sellpage');
 		$ret['site']['location'] = get_config('system','site_location');
+		$ret['site']['realm'] = get_directory_realm();
 
 	}
 	call_hooks('zot_finger',$ret);

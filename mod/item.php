@@ -430,8 +430,8 @@ function item_post(&$a) {
 	if($mimetype === 'text/bbcode') {
 
 		if(local_user() && local_user() == $profile_uid && feature_enabled(local_user(),'markdown')) {
-			require_once('include/bb2diaspora.php');
-			$body = diaspora2bb($body,true);
+			require_once('include/bb2diaspora.php');			
+			$body = diaspora2bb(escape_tags($body),true);
 		}
 
 
@@ -768,9 +768,9 @@ function item_post(&$a) {
 		$key = get_config('system','pubkey');
 		$datarray['item_flags'] = $datarray['item_flags'] | ITEM_OBSCURED;
 		if($datarray['title'])
-			$datarray['title'] = json_encode(aes_encapsulate($datarray['title'],$key));
+			$datarray['title'] = json_encode(crypto_encapsulate($datarray['title'],$key));
 		if($datarray['body'])
-			$datarray['body']  = json_encode(aes_encapsulate($datarray['body'],$key));
+			$datarray['body']  = json_encode(crypto_encapsulate($datarray['body'],$key));
 	}
 
 	if($orig_post) {
@@ -789,7 +789,6 @@ function item_post(&$a) {
 	}
 	else
 		$post_id = 0;
-
 
 	$post = item_store($datarray,$execflag);
 
@@ -852,6 +851,11 @@ function item_post(&$a) {
 		// NOTREACHED
 	}
 
+	if($parent) {
+		// Store the comment signature information in case we need to relay to Diaspora
+//FIXME
+		store_diaspora_comment_sig($datarray,$channel,$parent_item, $post_id);
+	}
 
 	update_remote_id($channel,$post_id,$webpage,$pagetitle,$namespace,$remote_id,$mid);
 
@@ -1186,6 +1190,10 @@ function handle_tag($a, &$body, &$access_tag, &$str_tags, $profile_uid, $tag) {
 function fix_attached_photo_permissions($uid,$xchan_hash,$body,
 		$str_contact_allow,$str_group_allow,$str_contact_deny,$str_group_deny) {
 
+	if(get_pconfig($uid,'system','force_public_uploads')) {
+		$str_contact_allow = $str_group_allow = $str_contact_deny = $str_group_deny = '';
+	}
+
 	$match = null;
 	// match img and zmg image links
 	if(preg_match_all("/\[[zi]mg(.*?)\](.*?)\[\/[zi]mg\]/",$body,$match)) {
@@ -1255,6 +1263,10 @@ function fix_attached_photo_permissions($uid,$xchan_hash,$body,
 function fix_attached_file_permissions($channel,$observer_hash,$body,
 		$str_contact_allow,$str_group_allow,$str_contact_deny,$str_group_deny) {
 
+	if(get_pconfig($channel['channel_id'],'system','force_public_uploads')) {
+		$str_contact_allow = $str_group_allow = $str_contact_deny = $str_group_deny = '';
+	}
+
 	$match = false;
 
 	if(preg_match_all("/\[attachment\](.*?)\[\/attachment\]/",$body,$match)) {
@@ -1275,6 +1287,7 @@ function fix_attached_file_permissions($channel,$observer_hash,$body,
 		}
 	}
 }
+
 function item_check_service_class($channel_id,$iswebpage) {
 	$ret = array('success' => false, $message => '');
 	if ($iswebpage) {
@@ -1313,3 +1326,4 @@ function item_check_service_class($channel_id,$iswebpage) {
 	$ret['success'] = true;
 	return $ret;
 }
+

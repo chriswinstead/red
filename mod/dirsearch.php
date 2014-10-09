@@ -29,6 +29,7 @@ function dirsearch_content(&$a) {
 
 	$sql_extra = '';
 
+
 	$tables = array('name','address','locale','region','postcode','country','gender','marital','sexual','keywords');
 
 	if($_REQUEST['query']) {
@@ -145,6 +146,11 @@ function dirsearch_content(&$a) {
 	if($hash)
 		$logic = 1;
 
+	if($dirmode == DIRECTORY_MODE_STANDALONE) {
+		$sql_extra .= " and xchan_addr like '%%" . get_app()->get_hostname() . "' ";
+	}
+
+
 	$safesql = (($safe > 0) ? " and not ( xchan_flags & " . intval(XCHAN_FLAGS_CENSORED|XCHAN_FLAGS_SELFCENSORED) . " ) " : '');
 	if($safe < 0)
 		$safesql = " and ( xchan_flags & " . intval(XCHAN_FLAGS_CENSORED|XCHAN_FLAGS_SELFCENSORED) . " ) ";
@@ -154,7 +160,7 @@ function dirsearch_content(&$a) {
 	else {
 		$qlimit = " LIMIT " . intval($startrec) . " , " . intval($perpage);
 		if($return_total) {
-			$r = q("SELECT COUNT(xchan_hash) AS `total` FROM xchan left join xprof on xchan_hash = xprof_hash where $logic $sql_extra and not ( xchan_flags & %d) and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) $safesql ",
+			$r = q("SELECT COUNT(xchan_hash) AS `total` FROM xchan left join xprof on xchan_hash = xprof_hash where $logic $sql_extra and xchan_network = 'zot' and not ( xchan_flags & %d) and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) $safesql ",
 				intval(XCHAN_FLAGS_HIDDEN),
 				intval(XCHAN_FLAGS_ORPHAN),
 				intval(XCHAN_FLAGS_DELETED)
@@ -199,7 +205,7 @@ function dirsearch_content(&$a) {
 		json_return_and_die($spkt);
 	}
 	else {
-		$r = q("SELECT xchan.*, xprof.* from xchan left join xprof on xchan_hash = xprof_hash where ( $logic $sql_extra ) and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) $safesql $order $qlimit ",
+		$r = q("SELECT xchan.*, xprof.* from xchan left join xprof on xchan_hash = xprof_hash where ( $logic $sql_extra ) and xchan_network = 'zot' and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) and not ( xchan_flags & %d ) $safesql $order $qlimit ",
 			intval(XCHAN_FLAGS_HIDDEN),
 			intval(XCHAN_FLAGS_ORPHAN),
 			intval(XCHAN_FLAGS_DELETED)
@@ -254,8 +260,8 @@ function dirsearch_content(&$a) {
 			}
 		}
 	}		
-	json_return_and_die($ret);
 
+	json_return_and_die($ret);
 }
 
 function dir_query_build($joiner,$field,$s) {
@@ -325,8 +331,18 @@ function dir_parse_query($s) {
 
 function list_public_sites() {
 
-
-	$r = q("select * from site where site_access != 0 and site_register !=0 order by rand()");
+	$realm = get_directory_realm();
+	if($realm == DIRECTORY_REALM) {
+		$r = q("select * from site where site_access != 0 and site_register !=0 and ( site_realm = '%s' or site_realm = '') order by rand()",
+			dbesc($realm)
+		);
+	}
+	else {
+		$r = q("select * from site where site_access != 0 and site_register !=0 and site_realm = '%s' order by rand()",
+			dbesc($realm)
+		);
+	}
+		
 	$ret = array('success' => false);
 
 	if($r) {
