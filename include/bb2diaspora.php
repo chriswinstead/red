@@ -79,19 +79,30 @@ function share_unshield($m) {
 
 function diaspora_mention_callback($matches) {
 
-	$webbie = $matches[2];
+	$webbie = $matches[2] . '@' . $matches[3];
 	$link = '';
 	if($webbie) {
 		$r = q("select * from hubloc left join xchan on hubloc_hash = xchan_hash where hubloc_addr = '%s' limit 1",
 			dbesc($webbie)
 		);
+		if(! $r) {
+			$x = discover_by_webbie($webbie);
+			if($x) {
+				$r = q("select * from hubloc left join xchan on hubloc_hash = xchan_hash where hubloc_addr = '%s' limit 1",
+					dbesc($webbie)
+				);
+			}
+		}
 		if($r)
 			$link = $r[0]['xchan_url'];
 	}
 	if(! $link)
 		$link = 'https://' . $matches[3] . '/u/' . $matches[2];
 
-	return '@[url=' . $link . ']' . trim($matches[1]) . '[/url]';
+	if($r && $r[0]['hubloc_network'] === 'zot')
+		return '@[zrl=' . $link . ']' . trim($matches[1]) . ((substr($matches[0],-1,1) === '+') ? '+' : '') . '[/zrl]' ;
+	else
+		return '@[url=' . $link . ']' . trim($matches[1]) . ((substr($matches[0],-1,1) === '+') ? '+' : '') . '[/url]' ;
 
 }
 
@@ -118,6 +129,10 @@ function diaspora2bb($s,$use_zrl = false) {
 
 
 //	$s = preg_replace('/\@\{(.+?)\; (.+?)\@(.+?)\}/','@[url=https://$3/u/$2]$1[/url]',$s);
+
+	// first try plustags
+
+	$s = preg_replace_callback('/\@\{(.+?)\; (.+?)\@(.+?)\}\+/','diaspora_mention_callback',$s);
 
 	$s = preg_replace_callback('/\@\{(.+?)\; (.+?)\@(.+?)\}/','diaspora_mention_callback',$s);
 
@@ -246,26 +261,57 @@ function bb2dmention_callback($match) {
 }
 
 
+function bb2diaspora_itemwallwall(&$item) {
+
+	if(($item['mid'] == $item['parent_mid']) && ($item['author_xchan'] != $item['owner_xchan']) && (is_array($item['author']))) {
+		logger('bb2diaspora_itemwallwall: author: ' . print_r($item['author'],true), LOGGER_DEBUG);
+	}
+
+	if(($item['mid'] == $item['parent_mid']) && ($item['author_xchan'] != $item['owner_xchan']) && (is_array($item['author'])) && $item['author']['xchan_url'] && $item['author']['xchan_name'] && $item['author']['xchan_photo_m']) {
+		logger('bb2diaspora_itemwallwall: wall to wall post',LOGGER_DEBUG);
+		// post will come across with the owner's identity. Throw a preamble onto the post to indicate the true author.
+		$item['body'] = "\n\n" 
+			. '[img]' . $item['author']['xchan_photo_m'] . '[/img]' 
+			. '[url=' . $item['author']['xchan_url'] . ']' . $item['author']['xchan_name'] . '[/url]' . "\n\n" 
+			. $item['body'];
+	}
+}
+
 
 function bb2diaspora_itembody($item) {
 
 	if($item['diaspora_meta']) {
-		$j = json_decode($item['diaspora_meta'],true);
-		if($j && $j['body']) {
-			logger('bb2diaspora_itembody: cached ');
-			return $j['body'];
+		$diaspora_meta = json_decode($item['diaspora_meta'],true);
+		if($diaspora_meta) {
+			if(array_key_exists('iv',$diaspora_meta)) {
+				$key = get_config('system','prvkey');
+				$meta = json_decode(crypto_unencapsulate($diaspora_meta,$key),true);
+			}
+			else {
+				$meta = $diaspora_meta;
+			}
+			if($meta) {
+				logger('bb2diaspora_itembody: cached ');
+				$newitem = $item;
+				$newitem['body'] = $meta['body'];
+// this won't work - the post is now in markdown
+//				bb2diaspora_itemwallwall($newitem);
+				return $newitem['body'];
+			}
 		}
 	}
 
-	$body = $item['body'];
+	$newitem = $item;
 
 	if(array_key_exists('item_flags',$item) && ($item['item_flags'] & ITEM_OBSCURED)) {
 		$key = get_config('system','prvkey');
-		$title = (($item['title']) ? crypto_unencapsulate(json_decode($item['title'],true),$key) : '');
-		$body  = (($item['body'])  ? crypto_unencapsulate(json_decode($item['body'],true),$key) : '');
+		$newitem['title'] = (($item['title']) ? crypto_unencapsulate(json_decode($item['title'],true),$key) : '');
+		$newitem['body']  = (($item['body'])  ? crypto_unencapsulate(json_decode($item['body'],true),$key) : '');
 	}
 
-	$body = preg_replace('/\#\^http/i', 'http', $body);
+	bb2diaspora_itemwallwall($newitem);
+
+	$body = preg_replace('/\#\^http/i', 'http', $newitem['body']);
 
 	// protect tags and mentions from hijacking
 

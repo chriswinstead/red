@@ -44,15 +44,15 @@ require_once('include/Contact.php');
 require_once('include/account.php');
 
 
-define ( 'RED_PLATFORM',            'Red Matrix' );
+define ( 'RED_PLATFORM',            'redmatrix' );
 define ( 'RED_VERSION',             trim(file_get_contents('version.inc')) . 'R');
 define ( 'ZOT_REVISION',            1     );
 
 define ( 'DB_UPDATE_VERSION',       1129  );
 
-define ( 'EOL',                    '<br />' . "\r\n"     );
-define ( 'ATOM_TIME',              'Y-m-d\TH:i:s\Z' );
-
+define ( 'EOL',                    '<br />' . "\r\n"      );
+define ( 'ATOM_TIME',              'Y-m-d\TH:i:s\Z'       );
+define ( 'NULL_DATE',              '0000-00-00 00:00:00'  );
 define ( 'TEMPLATE_BUILD_PATH',    'store/[data]/smarty3' );
 
 define ( 'DIRECTORY_MODE_NORMAL',      0x0000);  // This is technically DIRECTORY_MODE_TERTIARY, but it's the default, hence 0x0000
@@ -73,7 +73,6 @@ $DIRECTORY_FALLBACK_SERVERS = array(
 	'https://zotid.net', 
 	'https://redmatrix.nl', 
 	'https://whogotzot.com', 
-	'https://red.mariovavti.com',
 	'https://red.zottel.red',
 	'https://red.pixelbits.de'
 );
@@ -217,8 +216,9 @@ define ( 'PAGE_DIRECTORY_CHANNEL', 0x0008 ); // system channel used for director
 define ( 'PAGE_PREMIUM',           0x0010 );
 define ( 'PAGE_ADULT',             0x0020 );
 define ( 'PAGE_CENSORED',          0x0040 ); // Site admin has blocked this channel from appearing in casual search results and site feeds
-
 define ( 'PAGE_SYSTEM',            0x1000 );
+define ( 'PAGE_HUBADMIN',          0x2000 ); // set this to indicate a preferred admin channel rather than the 
+											 // default channel of any accounts with the admin role.
 define ( 'PAGE_REMOVED',           0x8000 );
 
 
@@ -450,6 +450,8 @@ define ( 'NAMESPACE_FEED',            'http://schemas.google.com/g/2010#updates-
 define ( 'NAMESPACE_OSTATUS',         'http://ostatus.org/schema/1.0' );
 define ( 'NAMESPACE_STATUSNET',       'http://status.net/schema/api/1/' );
 define ( 'NAMESPACE_ATOM1',           'http://www.w3.org/2005/Atom' );
+define ( 'NAMESPACE_YMEDIA',          'http://search.yahoo.com/mrss/' );
+
 /**
  * activity stream defines
  */
@@ -551,6 +553,7 @@ define ( 'ITEM_NOCOMMENT',       0x0800);  // commenting/followups are disabled
 define ( 'ITEM_OBSCURED',        0x1000);  // bit-mangled to protect from casual browsing by site admin
 define ( 'ITEM_VERIFIED',        0x2000);  // Signature verification was successful
 define ( 'ITEM_RETAINED',        0x4000);  // We looked at this item once to decide whether or not to expire it, and decided not to.
+define ( 'ITEM_RSS',             0x8000);  // Item comes from a feed. Use this to decide whether to link the title
 										   // Don't make us evaluate this same item again.
 /**
  *
@@ -713,10 +716,8 @@ class App {
 
 	function __construct() {
 
-		global $default_timezone;
-		$this->timezone = ((x($default_timezone)) ? $default_timezone : 'UTC');
-
-		date_default_timezone_set($this->timezone);
+		// we'll reset this after we read our config file
+		date_default_timezone_set('UTC');
 
 		$this->config = array('system'=>array());
 		$this->page = array();
@@ -807,7 +808,7 @@ class App {
 		 */
 
 		$this->pager['page'] = ((x($_GET,'page') && intval($_GET['page']) > 0) ? intval($_GET['page']) : 1);
-		$this->pager['itemspage'] = 50;
+		$this->pager['itemspage'] = 60;
 		$this->pager['start'] = ($this->pager['page'] * $this->pager['itemspage']) - $this->pager['itemspage'];
 		if($this->pager['start'] < 0)
 			$this->pager['start'] = 0;
@@ -980,9 +981,9 @@ class App {
 		if ($user_scalable === false)
 			$user_scalable = 1;
 
-		$interval = ((local_user()) ? get_pconfig(local_user(),'system','update_interval') : 40000);
+		$interval = ((local_user()) ? get_pconfig(local_user(),'system','update_interval') : 80000);
 		if($interval < 10000)
-			$interval = 40000;
+			$interval = 80000;
 
 		if(! x($this->page,'title'))
 			$this->page['title'] = $this->config['system']['sitename'];

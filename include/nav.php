@@ -105,14 +105,19 @@ EOT;
 		$nav['usermenu'][] = Array('cloud/' . $channel['channel_address'],t('Files'),"",t('Your files'));
 
 		require_once('include/chat.php');
-		$chats = chatroom_list(local_user());
-		if (count($chats)) {
+		$has_chats = chatroom_list_count(local_user());
+		if($has_chats) {
 			$nav['usermenu'][] = Array('chat/' . $channel['channel_address'],t('Chat'),"",t('Your chatrooms'));
 		}
 
-		$nav['usermenu'][] = Array('bookmarks', t('Bookmarks'), "", t('Your bookmarks'));
+		require_once('include/menu.php');
+		$has_bookmarks = menu_list_count(local_user(),'',MENU_BOOKMARK) + menu_list_count(local_user(),'',MENU_SYSTEM|MENU_BOOKMARK);
+		if($has_bookmarks) {
+			$nav['usermenu'][] = Array('bookmarks', t('Bookmarks'), "", t('Your bookmarks'));
+		}
+
 		if(feature_enabled($channel['channel_id'],'webpages'))
-			$nav['usermenu'][] = Array('webpages/' . $channel['channel_address'],t('Webpages'),"",t('Your webpages'));	
+			$nav['usermenu'][] = Array('webpages/' . $channel['channel_address'],t('Webpages'),"",t('Your webpages'));
 	}
 	else {
 		if(! get_account_id()) 
@@ -180,7 +185,10 @@ EOT;
 
 	if(local_user()) {
 
-		$nav['network'] = array('network', t('Matrix'), "", t('Your matrix'));
+		$network_options = get_pconfig(local_user(),'system','network_page_default');
+	
+		$nav['network'] = array('network' . (($network_options) ? '?f=&' . $network_options : ''), 
+			t('Matrix'), "", t('Your matrix'));
 		$nav['network']['mark'] = array('', t('Mark all matrix notifications seen'), '','');
 
 		$nav['home'] = array('channel/' . $channel['channel_address'], t('Channel Home'), "", t('Channel home'));
@@ -234,6 +242,12 @@ EOT;
 	$x = array('nav' => $nav, 'usermenu' => $userinfo );
 	call_hooks('nav', $x);
 
+// Not sure the best place to put this on the page. So I'm implementing it but leaving it 
+// turned off until somebody discovers this and figures out a good location for it. 
+$powered_by = '';
+
+//	$powered_by = '<strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="r#" />matrix</strong>';
+
 	$tpl = get_markup_template('nav.tpl');
 
 	$a->page['nav'] .= replace_macros($tpl, array(
@@ -241,10 +255,11 @@ EOT;
 		'$sitelocation' => $sitelocation,
 		'$nav' => $x['nav'],
 		'$banner' =>  $banner,
-		'$emptynotifications' => t('Nothing new here'),
+		'$emptynotifications' => t('Loading...'),
 		'$userinfo' => $x['usermenu'],
 		'$localuser' => local_user(),
 		'$sel' => 	$a->nav_sel,
+		'$powered_by' => $powered_by,
 		'$pleasewait' => t('Please wait...')
 	));
 

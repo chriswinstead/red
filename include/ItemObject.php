@@ -101,10 +101,18 @@ class Item extends BaseObject {
 		else
 			$edpost = false;
 
+
 		if($observer['xchan_hash'] == $this->get_data_value('author_xchan') 
 			|| $observer['xchan_hash'] == $this->get_data_value('owner_xchan') 
 			|| $this->get_data_value('uid') == local_user())
 			$dropping = true;
+
+
+		if(array_key_exists('real_uid',$item)) {
+			$edpost = false;
+			$dropping = false;
+		}
+
 
 		if($dropping) {
 			$drop = array(
@@ -119,7 +127,7 @@ class Item extends BaseObject {
 			);
 		}
 
-		$filer = (($conv->get_profile_owner() == local_user()) ? t("Save to Folder") : false);
+		$filer = ((($conv->get_profile_owner() == local_user()) && (! array_key_exists('real_uid',$item))) ? t("Save to Folder") : false);
 
 		$profile_avatar = $item['author']['xchan_photo_m'];
 		$profile_link   = chanlink_url($item['author']['xchan_url']);
@@ -163,7 +171,7 @@ class Item extends BaseObject {
 		
 		if($this->is_toplevel()) {
 			// FIXME check this permission
-			if($conv->get_profile_owner() == local_user()) {
+			if(($conv->get_profile_owner() == local_user()) && (! array_key_exists('real_uid',$item))) {
 
 // FIXME we don't need all this stuff, some can be done in the template
 
@@ -250,13 +258,14 @@ class Item extends BaseObject {
 			'osparkle' => $osparkle,
 			'sparkle' => $sparkle,
 			'title' => $item['title'],
+			'title_tosource' => get_pconfig($conv->get_profile_owner(),'system','title_tosource'),
 			'ago' => relative_date($item['created']),
 			'app' => $item['app'],
 			'str_app' => sprintf( t(' from %s'), $item['app']),
 			'isotime' => datetime_convert('UTC', date_default_timezone_get(), $item['created'], 'c'),
 			'localtime' => datetime_convert('UTC', date_default_timezone_get(), $item['created'], 'r'),
 			'editedtime' => (($item['edited'] != $item['created']) ? sprintf( t('last edited: %s'), datetime_convert('UTC', date_default_timezone_get(), $item['edited'], 'r')) : ''),
-			'expiretime' => (($item['expires'] !== '0000-00-00 00:00:00') ? sprintf( t('Expires: %s'), datetime_convert('UTC', date_default_timezone_get(), $item['expires'], 'r')):''),
+			'expiretime' => (($item['expires'] !== NULL_DATE) ? sprintf( t('Expires: %s'), datetime_convert('UTC', date_default_timezone_get(), $item['expires'], 'r')):''),
 			'lock' => $lock,
 			'verified' => $verified,
 			'unverified' => $unverified,

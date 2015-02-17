@@ -11,10 +11,13 @@ head_add_css('library/photoswipe/photoswipe.css');
 
 head_add_css('view/css/conversation.css');
 head_add_css('view/css/widgets.css');
+head_add_css('library/justifiedGallery/dist/css/justifiedGallery.css');
 
 
 head_add_js('jquery.js');
 head_add_js('jquery-migrate-1.1.1.js');
+head_add_js('library/justifiedGallery/dist/js/jquery.justifiedGallery.js');
+
 //head_add_js('jquery-compat.js');
 head_add_js('spin.js');
 head_add_js('jquery.spin.js');
@@ -31,6 +34,7 @@ head_add_js('library/cryptojs/components/core-min.js');
 head_add_js('library/cryptojs/rollups/aes.js');
 head_add_js('library/cryptojs/rollups/rabbit.js');
 head_add_js('library/cryptojs/rollups/tripledes.js');
+//head_add_js('library/stylish_select/jquery.stylish-select.js');
 head_add_js('acl.js');
 head_add_js('webtoolkit.base64.js');
 head_add_js('main.js');

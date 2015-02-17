@@ -9,22 +9,30 @@
  * You find the original SabreDAV classes under @ref vendor/sabre/dav/.
  * We need to use SabreDAV 1.8.x for PHP5.3 compatibility. SabreDAV >= 2.0
  * requires PHP >= 5.4.
+ *
+ * @todo split up the classes into own files.
  */
 
 use Sabre\DAV;
+
 require_once('vendor/autoload.php');
 require_once('include/attach.php');
-
 
 /**
  * @brief RedDirectory class.
  *
  * A class that represents a directory.
+ *
+ * @extends \Sabre\DAV\Node
+ * @implements \Sabre\DAV\ICollection
+ * @implements \Sabre\DAV\IQuota
  */
 class RedDirectory extends DAV\Node implements DAV\ICollection, DAV\IQuota {
 
 	/**
 	 * @brief The path inside /cloud
+	 *
+	 * @var string
 	 */
 	private $red_path;
 	private $folder_hash;
@@ -32,6 +40,7 @@ class RedDirectory extends DAV\Node implements DAV\ICollection, DAV\IQuota {
 	 * @brief The full path as seen in the browser.
 	 * /cloud + $red_path
 	 * @todo I think this is not used anywhere, we always strip '/cloud' and only use it in debug
+	 * @var string
 	 */
 	private $ext_path;
 	private $root_dir = '';
@@ -39,6 +48,8 @@ class RedDirectory extends DAV\Node implements DAV\ICollection, DAV\IQuota {
 	/**
 	 * @brief The real path on the filesystem.
 	 * The actual path in store/ with the hashed names.
+	 *
+	 * @var string
 	 */
 	private $os_path = '';
 
@@ -107,7 +118,7 @@ class RedDirectory extends DAV\Node implements DAV\ICollection, DAV\IQuota {
 		if (get_config('system', 'block_public') && (! $this->auth->channel_id) && (! $this->auth->observer)) {
 			throw new DAV\Exception\Forbidden('Permission denied.');
 		}
- 
+
 		if (($this->auth->owner_id) && (! perm_is_allowed($this->auth->owner_id, $this->auth->observer, 'view_storage'))) {
 			throw new DAV\Exception\Forbidden('Permission denied.');
 		}
@@ -971,78 +982,111 @@ function RedFileData($file, &$auth, $test = false) {
 
 
 /**
- * RedBasicAuth class.
+ * @brief Authentication backend class for RedDAV.
+ *
+ * This class also contains some data which is not necessary for authentication
+ * like timezone settings.
  *
  */
 class RedBasicAuth extends DAV\Auth\Backend\AbstractBasic {
 
-	// @fixme mod/cloud.php:61
-	public $channel_name = '';
-	// @fixme mod/cloud.php:62
+	/**
+	 * @brief This variable holds the currently logged-in channel_address.
+	 *
+	 * It is used for building path in filestorage/.
+	 *
+	 * @var string|null
+	 */
+	protected $channel_name = null;
+	/**
+	 * channel_id of the current channel of the logged-in account.
+	 *
+	 * @var int
+	 */
 	public $channel_id = 0;
-	// @fixme mod/cloud.php:63
+	/**
+	 * channel_hash of the current channel of the logged-in account.
+	 *
+	 * @var string
+	 */
 	public $channel_hash = '';
-	// @fixme mod/cloud.php:68
+	/**
+	 * Set in mod/cloud.php to observer_hash.
+	 *
+	 * @var string
+	 */
 	public $observer = '';
-	// @fixme include/reddav.php:51
-	public $browser;
-	// @fixme include/reddav.php:92
-	public $owner_id;
-	// @fixme include/reddav.php:283
-	public $owner_nick = '';
-	// @fixme mod/cloud.php:66
-	public $timezone;
-
 	/**
 	 *
+	 * @see RedBrowser::set_writeable()
+	 * @var DAV\Browser\Plugin
+	 */
+	public $browser;
+	/**
+	 * channel_id of the current visited path. Set in RedDirectory::getDir().
+	 *
+	 * @var int
+	 */
+	public $owner_id = 0;
+	/**
+	 * channel_name of the current visited path. Set in RedDirectory::getDir().
+	 *
+	 * Used for creating the path in cloud/
+	 *
+	 * @var string
+	 */
+	public $owner_nick = '';
+	/**
+	 * Timezone from the visiting channel's channel_timezone.
+	 *
+	 * Used in @ref RedBrowser
+	 *
+	 * @var string
+	 */
+	protected $timezone = '';
+
+
+	/**
+	 * @brief Validates a username and password.
+	 *
+	 * Guest access is granted with the password "+++".
+	 *
+	 * @see DAV\Auth\Backend\AbstractBasic::validateUserPass
 	 * @param string $username
 	 * @param string $password
+	 * @return bool
 	 */
 	protected function validateUserPass($username, $password) {
-
 		if (trim($password) === '+++') {
-			logger('reddav: validateUserPass: guest ' . $username);
+			logger('(DAV): RedBasicAuth::validateUserPass(): guest ' . $username);
 			return true;
 		}
 
 		require_once('include/auth.php');
 		$record = account_verify_password($username, $password);
 		if ($record && $record['account_default_channel']) {
-			$r = q("select * from channel where channel_account_id = %d and channel_id = %d limit 1",
+			$r = q("SELECT * FROM channel WHERE channel_account_id = %d AND channel_id = %d LIMIT 1",
 				intval($record['account_id']),
 				intval($record['account_default_channel'])
 			);
 			if ($r) {
-				$this->currentUser = $r[0]['channel_address'];
-				$this->channel_name = $r[0]['channel_address'];
-				$this->channel_id = $r[0]['channel_id'];
-				$this->channel_hash = $this->observer = $r[0]['channel_hash'];
-				$_SESSION['uid'] = $r[0]['channel_id'];
-				$_SESSION['account_id'] = $r[0]['channel_account_id'];
-				$_SESSION['authenticated'] = true;
-				return true;
+				return $this->setAuthenticated($r[0]);
 			}
 		}
-		$r = q("select * from channel where channel_address = '%s' limit 1",
+		$r = q("SELECT * FROM channel WHERE channel_address = '%s' LIMIT 1",
 			dbesc($username)
 		);
 		if ($r) {
-			$x = q("select * from account where account_id = %d limit 1",
+			$x = q("SELECT account_flags, account_salt, account_password FROM account WHERE account_id = %d LIMIT 1",
 				intval($r[0]['channel_account_id'])
 			);
 			if ($x) {
+				// @fixme this foreach should not be needed?
 				foreach ($x as $record) {
 					if (($record['account_flags'] == ACCOUNT_OK) || ($record['account_flags'] == ACCOUNT_UNVERIFIED)
 					&& (hash('whirlpool', $record['account_salt'] . $password) === $record['account_password'])) {
 						logger('(DAV) RedBasicAuth: password verified for ' . $username);
-						$this->currentUser = $r[0]['channel_address'];
-						$this->channel_name = $r[0]['channel_address'];
-						$this->channel_id = $r[0]['channel_id'];
-						$this->channel_hash = $this->observer = $r[0]['channel_hash'];
-						$_SESSION['uid'] = $r[0]['channel_id'];
-						$_SESSION['account_id'] = $r[0]['channel_account_id'];
-						$_SESSION['authenticated'] = true;
-						return true;
+						return $this->setAuthenticated($r[0]);
 					}
 				}
 			}
@@ -1051,12 +1095,68 @@ class RedBasicAuth extends DAV\Auth\Backend\AbstractBasic {
 		return false;
 	}
 
-	public function setCurrentUser($name) {
-		$this->currentUser = $name;
+	/**
+	 * @brief Sets variables and session parameters after successfull authentication.
+	 * 
+	 * @param array $r
+	 *  Array with the values for the authenticated channel.
+	 * @return bool
+	 */
+	protected function setAuthenticated($r) {
+		$this->channel_name = $r['channel_address'];
+		$this->channel_id = $r['channel_id'];
+		$this->channel_hash = $this->observer = $r['channel_hash'];
+		$_SESSION['uid'] = $r['channel_id'];
+		$_SESSION['account_id'] = $r['channel_account_id'];
+		$_SESSION['authenticated'] = true;
+		return true;
 	}
 
 	/**
-	 * @brief Set browser plugin.
+	 * Sets the channel_name from the currently logged-in channel.
+	 *
+	 * @param string $name
+	 *  The channel's name
+	 */
+	public function setCurrentUser($name) {
+		$this->channel_name = $name;
+	}
+	/**
+	 * Returns information about the currently logged-in channel.
+	 *
+	 * If nobody is currently logged in, this method should return null.
+	 *
+	 * @see DAV\Auth\Backend\AbstractBasic::getCurrentUser
+	 * @return string|null
+	 */
+	public function getCurrentUser() {
+		return $this->channel_name;
+	}
+
+	/**
+	 * @brief Sets the timezone from the channel in RedBasicAuth.
+	 *
+	 * Set in mod/cloud.php if the channel has a timezone set.
+	 *
+	 * @param string $timezone
+	 *  The channel's timezone.
+	 * @return void
+	 */
+	public function setTimezone($timezone) {
+		$this->timezone = $timezone;
+	}
+	/**
+	 * @brief Returns the timezone.
+	 *
+	 * @return string
+	 *  Return the channel's timezone.
+	 */
+	public function getTimezone() {
+		return $this->timezone;
+	}
+
+	/**
+	 * @brief Set browser plugin for SabreDAV.
 	 *
 	 * @see RedBrowser::set_writeable()
 	 * @param DAV\Browser\Plugin $browser
@@ -1065,8 +1165,12 @@ class RedBasicAuth extends DAV\Auth\Backend\AbstractBasic {
 		$this->browser = $browser;
 	}
 
-	// internal? logging function
-	function log() {
+	/**
+	 * Prints out all RedBasicAuth variables to logger().
+	 *
+	 * @return void
+	 */
+	public function log() {
 		logger('dav: auth: channel_name ' . $this->channel_name, LOGGER_DATA);
 		logger('dav: auth: channel_id ' . $this->channel_id, LOGGER_DATA);
 		logger('dav: auth: channel_hash ' . $this->channel_hash, LOGGER_DATA);
@@ -1076,315 +1180,3 @@ class RedBasicAuth extends DAV\Auth\Backend\AbstractBasic {
 	}
 
 } // class RedBasicAuth
-
-
-
-/**
- * RedBrowser class.
- *
- */
-class RedBrowser extends DAV\Browser\Plugin {
-
-	private $auth;
-
-	function __construct(&$auth) {
-		$this->auth = $auth;
-		$this->enableAssets = false;
-	}
-
-	// The DAV browser is instantiated after the auth module and directory classes but before we know the current
-	// directory and who the owner and observer are. So we add a pointer to the browser into the auth module and vice 
-	// versa. Then when we've figured out what directory is actually being accessed, we call the following function
-	// to decide whether or not to show web elements which include writeable objects.
-	function set_writeable() {
-		if (! $this->auth->owner_id) {
-			$this->enablePost = false;
-		}
-
-		if (! perm_is_allowed($this->auth->owner_id, get_observer_hash(), 'write_storage')) {
-			$this->enablePost = false;
-		} else {
-			$this->enablePost = true;
-		}
-	}
-
-	/**
-	 * @brief Creates the directory listing for the given path.
-	 *
-	 * @param string $path which should be displayed
-	 */
-	public function generateDirectoryIndex($path) {
-		// (owner_id = channel_id) is visitor owner of this directory?
-		$is_owner = ((local_user() && $this->auth->owner_id == local_user()) ? true : false);
-
-		if ($this->auth->timezone)
-			date_default_timezone_set($this->auth->timezone);
-
-		require_once('include/conversation.php');
-
-		if ($this->auth->owner_nick) {
-			$html = profile_tabs(get_app(), (($is_owner) ? true : false), $this->auth->owner_nick);
-		}
-
-		$files = $this->server->getPropertiesForPath($path, array(
-			'{DAV:}displayname',
-			'{DAV:}resourcetype',
-			'{DAV:}getcontenttype',
-			'{DAV:}getcontentlength',
-			'{DAV:}getlastmodified',
-			), 1);
-
-		$parent = $this->server->tree->getNodeForPath($path);
-
-		$parentpath = array();
-		// only show parent if not leaving /cloud/; TODO how to improve this? 
-		if ($path && $path != "cloud") {
-			list($parentUri) = DAV\URLUtil::splitPath($path);
-			$fullPath = DAV\URLUtil::encodePath($this->server->getBaseUri() . $parentUri);
-
-			$parentpath['icon'] = $this->enableAssets ? '<a href="' . $fullPath . '"><img src="' . $this->getAssetUrl('icons/parent' . $this->iconExtension) . '" width="24" alt="' . t('parent') . '"></a>' : '';
-			$parentpath['path'] = $fullPath;
-		}
-
-		$f = array();
-		foreach ($files as $file) {
-			$ft = array();
-			$type = null;
-
-			// This is the current directory, we can skip it
-			if (rtrim($file['href'],'/')==$path) continue;
-
-			list(, $name) = DAV\URLUtil::splitPath($file['href']);
-
-			if (isset($file[200]['{DAV:}resourcetype'])) {
-				$type = $file[200]['{DAV:}resourcetype']->getValue();
-
-				// resourcetype can have multiple values
-				if (!is_array($type)) $type = array($type);
-
-				foreach ($type as $k=>$v) {
-					// Some name mapping is preferred
-					switch ($v) {
-						case '{DAV:}collection' :
-							$type[$k] = t('Collection');
-							break;
-						case '{DAV:}principal' :
-							$type[$k] = t('Principal');
-							break;
-						case '{urn:ietf:params:xml:ns:carddav}addressbook' :
-							$type[$k] = t('Addressbook');
-							break;
-						case '{urn:ietf:params:xml:ns:caldav}calendar' :
-							$type[$k] = t('Calendar');
-							break;
-						case '{urn:ietf:params:xml:ns:caldav}schedule-inbox' :
-							$type[$k] = t('Schedule Inbox');
-							break;
-						case '{urn:ietf:params:xml:ns:caldav}schedule-outbox' :
-							$type[$k] = t('Schedule Outbox');
-							break;
-						case '{http://calendarserver.org/ns/}calendar-proxy-read' :
-							$type[$k] = 'Proxy-Read';
-							break;
-						case '{http://calendarserver.org/ns/}calendar-proxy-write' :
-							$type[$k] = 'Proxy-Write';
-							break;
-					}
-				}
-				$type = implode(', ', $type);
-			}
-
-			// If no resourcetype was found, we attempt to use
-			// the contenttype property
-			if (!$type && isset($file[200]['{DAV:}getcontenttype'])) {
-				$type = $file[200]['{DAV:}getcontenttype'];
-			}
-			if (!$type) $type = t('Unknown');
-
-			$size = isset($file[200]['{DAV:}getcontentlength']) ? (int)$file[200]['{DAV:}getcontentlength'] : '';
-			$lastmodified = ((isset($file[200]['{DAV:}getlastmodified'])) ? $file[200]['{DAV:}getlastmodified']->getTime()->format('Y-m-d H:i:s') : '');
-
-			$fullPath = DAV\URLUtil::encodePath('/' . trim($this->server->getBaseUri() . ($path ? $path . '/' : '') . $name, '/'));
-
-			$displayName = isset($file[200]['{DAV:}displayname']) ? $file[200]['{DAV:}displayname'] : $name;
-
-			$displayName = $this->escapeHTML($displayName);
-			$type = $this->escapeHTML($type);
-
-			$icon = '';
-			if ($this->enableAssets) {
-				$node = $this->server->tree->getNodeForPath(($path ? $path . '/' : '') . $name);
-				foreach (array_reverse($this->iconMap) as $class=>$iconName) {
-					if ($node instanceof $class) {
-						$icon = '<a href="' . $fullPath . '"><img src="' . $this->getAssetUrl($iconName . $this->iconExtension) . '" alt="" width="24"></a>';
-						break;
-					}
-				}
-			}
-	
-			$parentHash = "";
-			$owner = $this->auth->owner_id;
-			$splitPath = split("/", $fullPath);
-			if (count($splitPath) > 3) {
-				for ($i = 3; $i < count($splitPath); $i++) {
-					$attachName = urldecode($splitPath[$i]);
-					$attachHash = $this->findAttachHash($owner, $parentHash, $attachName);
-					$parentHash = $attachHash;
-				}
-			}
-
-			$attachIcon = ""; // "<a href=\"attach/".$attachHash."\" title=\"".$displayName."\"><i class=\"icon-download\"></i></a>";
-
-			// put the array for this file together
-			$ft['attachId'] = $this->findAttachIdByHash($attachHash);
-			$ft['fileStorageUrl'] = substr($fullPath, 0, strpos($fullPath, "cloud/")) . "filestorage/" . $this->auth->channel_name;
-			$ft['icon'] = $icon;
-			$ft['attachIcon'] = (($size) ? $attachIcon : '');
-			// @todo Should this be an item value, not a global one?
-			$ft['is_owner'] = $is_owner;
-			$ft['fullPath'] = $fullPath;
-			$ft['displayName'] = $displayName;
-			$ft['type'] = $type;
-			$ft['size'] = $size;
-			$ft['sizeFormatted'] = $this->userReadableSize($size);
-			$ft['lastmodified'] = (($lastmodified) ? datetime_convert('UTC', date_default_timezone_get(), $lastmodified) : '');
-
-			$f[] = $ft;
-		}
-
-		// Storage and quota for the account (all channels of the owner of this directory)!
-		$limit = service_class_fetch($owner, 'attach_upload_limit');
-		$r = q("SELECT SUM(filesize) AS total FROM attach WHERE aid = %d",
-			intval($this->auth->channel_account_id)
-		);
-		$used = $r[0]['total'];
-		if ($used) {
-			$quotaDesc = t('%1$s used');
-			$quotaDesc = sprintf($quotaDesc,
-				$this->userReadableSize($used));
-		}
-		if ($limit && $used) {
-			$quotaDesc = t('%1$s used of %2$s (%3$s&#37;)');
-			$quotaDesc = sprintf($quotaDesc,
-				$this->userReadableSize($used),
-				$this->userReadableSize($limit),
-				round($used / $limit, 1));
-		}
-
-		// prepare quota for template
-		$quota['used'] = $used;
-		$quota['limit'] = $limit;
-		$quota['desc'] = $quotaDesc;
-
-		$html .= replace_macros(get_markup_template('cloud_directory.tpl'), array(
-				'$header' => t('Files') . ": " . $this->escapeHTML($path) . "/",
-				'$parentpath' => $parentpath,
-				'$entries' => $f,
-				'$quota' => $quota,
-				'$name' => t('Name'),
-				'$type' => t('Type'),
-				'$size' => t('Size'),
-				'$lastmod' => t('Last Modified'),
-				'$parent' => t('parent'),
-				'$edit' => t('Edit'),
-				'$delete' => t('Delete'),
-				'$total' => t('Total')		
-			));
-
-		$output = '';
-		if ($this->enablePost) {
-			$this->server->broadcastEvent('onHTMLActionsPanel', array($parent, &$output));
-		}
-		$html .= $output;
-	
-		get_app()->page['content'] = $html;
-		construct_page(get_app());
-	}
-
-	function userReadableSize($size) {
-		$ret = "";
-		if (is_numeric($size)) {
-			$incr = 0;
-			$k = 1024;
-			$unit = array('bytes', 'KB', 'MB', 'GB', 'TB', 'PB');
-			while (($size / $k) >= 1){
-				$incr++;
-				$size = round($size / $k, 2);
-			}
-			$ret = $size . " " . $unit[$incr];
-		}
-		return $ret;
-	}
-
-	/**
-	 * Creates a form to add new folders and upload files.
-	 *
-	 * @param DAV\INode $node
-	 * @param string &$output
-	 */
-	public function htmlActionsPanel(DAV\INode $node, &$output) {
-
-	//Removed link to filestorage page
-	//if($this->auth->owner_id && $this->auth->owner_id == $this->auth->channel_id) {
-	//		$channel = get_app()->get_channel();
-	//	if($channel) {
-	//		$output .= '<tr><td colspan="2"><a href="filestorage/' . $channel['channel_address'] . '" >' . t('Edit File properties') . '</a></td></tr><tr><td>&nbsp;</td></tr>';
-	//	}
-	//}
-
-		if (! $node instanceof DAV\ICollection)
-			return;
-
-		// We also know fairly certain that if an object is a non-extended
-		// SimpleCollection, we won't need to show the panel either.
-		if (get_class($node) === 'Sabre\\DAV\\SimpleCollection')
-			return;
-
-		$output .= replace_macros(get_markup_template('cloud_actionspanel.tpl'), array(
-				'$folder_header' => t('Create new folder'),
-				'$folder_submit' => t('Create'),
-				'$upload_header' => t('Upload file'),
-				'$upload_submit' => t('Upload')
-			));
-	}
-
-	/**
-	 * This method takes a path/name of an asset and turns it into url
-	 * suiteable for http access.
-	 *
-	 * @param string $assetName
-	 * @return string
-	 */
-	protected function getAssetUrl($assetName) {
-		return z_root() . '/cloud/?sabreAction=asset&assetName=' . urlencode($assetName);
-	}
-
-	protected function findAttachHash($owner, $parentHash, $attachName) {
-		$r = q("SELECT * FROM attach WHERE uid = %d AND folder = '%s' AND filename = '%s' ORDER BY edited desc LIMIT 1",
-			intval($owner),
-			dbesc($parentHash),
-			dbesc($attachName)
-		);
-		$hash = "";
-		if ($r) {
-			foreach ($r as $rr) {
-				$hash = $rr['hash'];
-			}
-		}
-		return $hash;
-	}
-
-	protected function findAttachIdByHash($attachHash) {
-		$r = q("SELECT * FROM attach WHERE hash = '%s' ORDER BY edited DESC LIMIT 1",
-			dbesc($attachHash)
-		);
-		$id = "";
-		if ($r) {
-			foreach ($r as $rr) {
-				$id = $rr['id'];
-			}
-		}
-		return $id;
-	}
-
-} // class RedBrowser

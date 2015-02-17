@@ -19,6 +19,9 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 	$is_red = false;
 	$is_http = ((strpos($url,'://') !== false) ? true : false);
 
+	if($is_http && substr($url,-1,1) === '/')
+		$url = substr($url,0,-1);
+
 	if(! allowed_url($url)) {
 		$result['message'] = t('Channel is blocked on this site.');
 		return $result;
@@ -63,6 +66,13 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 
 		$my_perms = PERMS_W_STREAM|PERMS_W_MAIL;
 
+		$role = get_pconfig($uid,'system','permissions_role');
+		if($role) {
+			$x = get_role_perms($role);
+			if($x['perms_follow'])
+				$my_perms = $x['perms_follow'];
+		}
+
 		logger('follow: ' . $url . ' ' . print_r($j,true), LOGGER_DEBUG);
 
 
@@ -74,7 +84,7 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 
 		// Premium channel, set confirm before callback to avoid recursion
 
-		if(array_key_exists('connect_url',$j) && (! $confirm))
+		if(array_key_exists('connect_url',$j) && ($interactive) && (! $confirm))
 			goaway(zid($j['connect_url']));
 
 
@@ -136,7 +146,7 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 
 		if(! $r) {
 			// attempt network auto-discovery
-			if(strpos($url,'@')) {
+			if(strpos($url,'@') && (! $is_http)) {
 				$r = discover_by_webbie($url);
 			}
 			elseif($is_http) {
@@ -153,6 +163,12 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 			$xchan_hash = $r[0]['xchan_hash'];
 			$their_perms = 0;
 			$my_perms = PERMS_W_STREAM|PERMS_W_MAIL;
+			$role = get_pconfig($uid,'system','permissions_role');
+			if($role) {
+				$x = get_role_perms($role);
+				if($x['perms_follow'])
+					$my_perms = $x['perms_follow'];
+			}
 		}
 	}
 

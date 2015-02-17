@@ -323,10 +323,23 @@ function mark_orphan_hubsxchans() {
 		return;
 
     $r = q("update hubloc set hubloc_status = (hubloc_status | %d) where not (hubloc_status & %d) 
-		and hubloc_network != 'zot' and hubloc_connected < utc_timestamp() - interval 36 day",
+		and hubloc_network = 'zot' and hubloc_connected < utc_timestamp() - interval 36 day",
         intval(HUBLOC_OFFLINE),
         intval(HUBLOC_OFFLINE)
     );
+
+//	$realm = get_directory_realm();
+//	if($realm == DIRECTORY_REALM) {
+//		$r = q("select * from site where site_access != 0 and site_register !=0 and ( site_realm = '%s' or site_realm = '') order by rand()",
+//			dbesc($realm)
+//		);
+//	}
+//	else {
+//		$r = q("select * from site where site_access != 0 and site_register !=0 and site_realm = '%s' order by rand()",
+//			dbesc($realm)
+//		);
+//	}
+
 
 	$r = q("select hubloc_id, hubloc_hash from hubloc where (hubloc_status & %d) and not (hubloc_flags & %d)",
 		intval(HUBLOC_OFFLINE),

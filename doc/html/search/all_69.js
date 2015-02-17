@@ -1,7 +1,7 @@
 var searchData=
 [
   ['identity_2ephp',['identity.php',['../identity_8php.html',1,'']]],
-  ['identity_5fbasic_5fexport',['identity_basic_export',['../identity_8php.html#a3570a4eb77332b292d394c4132cb8f03',1,'identity.php']]],
+  ['identity_5fbasic_5fexport',['identity_basic_export',['../identity_8php.html#afaedbc8e2d2a70ec8b006162baac5249',1,'identity.php']]],
   ['identity_5fcheck_5fservice_5fclass',['identity_check_service_class',['../identity_8php.html#ac9fcd5c4c371998790b5c55c3d0f4633',1,'identity.php']]],
   ['identity_5fselector',['identity_selector',['../identity_8php.html#a2ab5172eabd375869060c9ad68323f5c',1,'identity.php']]],
   ['ids_5fto_5fquerystr',['ids_to_querystr',['../text_8php.html#a436a8de00c942364c2d0fcfc7e1f4b5a',1,'text.php']]],
@@ -10,6 +10,7 @@ var searchData=
   ['import_2ephp',['import.php',['../import_8php.html',1,'']]],
   ['import_5fauthor_5fdiaspora',['import_author_diaspora',['../items_8php.html#a2c3f97b2109c05df86d97449b3c78ebc',1,'items.php']]],
   ['import_5fauthor_5frss',['import_author_rss',['../items_8php.html#a6bee35961f2e32905f20367a9309d627',1,'items.php']]],
+  ['import_5fauthor_5funknown',['import_author_unknown',['../items_8php.html#a37f79991f36811cf847446ff60e8e11f',1,'items.php']]],
   ['import_5fauthor_5fxchan',['import_author_xchan',['../items_8php.html#ae73794179b62d39bb597ff670ab1c1e5',1,'items.php']]],
   ['import_5fauthor_5fzot',['import_author_zot',['../zot_8php.html#ad149f1e98c0c5b88ff9147e6ee3f330d',1,'zot.php']]],
   ['import_5fchannel_5fphoto',['import_channel_photo',['../photo__driver_8php.html#a1d0bc7161dec0d177b7d3bbe4421af9a',1,'photo_driver.php']]],
@@ -81,6 +82,7 @@ var searchData=
   ['item_5frelay',['ITEM_RELAY',['../boot_8php.html#a2958a2bd5422b85329d7c36c06dbc221',1,'boot.php']]],
   ['item_5fremove_5fcid',['item_remove_cid',['../items_8php.html#a5ed782ff5b9cf050bec931e06de12c00',1,'items.php']]],
   ['item_5fretained',['ITEM_RETAINED',['../boot_8php.html#a11cfe7d99b4dac0454d0de8873989f81',1,'boot.php']]],
+  ['item_5frss',['ITEM_RSS',['../boot_8php.html#ac4d1c93dabcace711ffb4931204c336b',1,'boot.php']]],
   ['item_5fspam',['ITEM_SPAM',['../boot_8php.html#a40d885b2cfd736aab4234ae641ca4dfb',1,'boot.php']]],
   ['item_5fstarred',['ITEM_STARRED',['../boot_8php.html#a7af107fab8d62b9a73801713b774ed30',1,'boot.php']]],
   ['item_5fstore',['item_store',['../items_8php.html#a2541e6861a56d145c9281877cc501615',1,'items.php']]],

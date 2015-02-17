@@ -815,28 +815,26 @@ function micropro($contact, $redirect = false, $class = '', $textmode = false) {
 
 function search($s,$id='search-box',$url='/search',$save = false) {
 	$a = get_app();
-	$o  = '<div id="' . $id . '">';
-	$o .= '<form action="' . $a->get_baseurl((stristr($url,'network')) ? true : false) . $url . '" method="get" >';
-	$o .= '<input type="text" class="icon-search" name="search" id="search-text" placeholder="&#xf002;" value="' . $s .'" onclick="this.submit();" />';
-	$o .= '<input class="search-submit btn btn-default" type="submit" name="submit" id="search-submit" value="' . t('Search') . '" />'; 
-	if(feature_enabled(local_user(),'savedsearch'))
-		$o .= '<input class="search-save btn btn-default" type="submit" name="save" id="search-save" value="' . t('Save') . '" />'; 
-	$o .= '</form></div>';
-	return $o;
+	return replace_macros(get_markup_template('searchbox.tpl'),array(
+		'$s' => $s,
+		'$id' => $id,
+		'$action_url' => $a->get_baseurl((stristr($url,'network')) ? true : false) . $url,
+		'$search_label' => t('Search'),
+		'$save_label' => t('Save'),
+		'$savedsearch' => feature_enabled(local_user(),'savedsearch')
+	));
 }
 
 
 function searchbox($s,$id='search-box',$url='/search',$save = false) {
-	$a = get_app();
-	$o  = '<div id="' . $id . '">';
-	$o .= '<form action="' . z_root() . '/' . $url . '" method="get" >';
-	$o .= '<input type="hidden" name="f" value="" />';
-	$o .= '<input type="text" class="icon-search" name="search" id="search-text" placeholder="&#xf002;" value="' . $s .'" onclick="this.submit();" />';
-	$o .= '<input type="submit" name="submit" class="btn btn-default" id="search-submit" value="' . t('Search') . '" />'; 
-	if(feature_enabled(local_user(),'savedsearch'))
-		$o .= '<input type="submit" name="searchsave" class="btn btn-default" id="search-save" value="' . t('Save') . '" />'; 
-	$o .= '</form></div>';
-	return $o;
+	return replace_macros(get_markup_template('searchbox.tpl'),array(
+		'$s' => $s,
+		'$id' => $id,
+		'$action_url' => z_root() . '/' . $url,
+		'$search_label' => t('Search'),
+		'$save_label' => t('Save'),
+		'$savedsearch' => feature_enabled(local_user(),'savedsearch')
+	));
 }
 
 
@@ -972,6 +970,7 @@ function smilies($s, $sample = false) {
 		|| (local_user() && intval(get_pconfig(local_user(),'system','no_smilies'))))
 		return $s;
 
+
 	$s = preg_replace_callback('{<(pre|code)>.*?</\1>}ism','smile_shield',$s);
 	$s = preg_replace_callback('/<[a-z]+ .*?>/ism','smile_shield',$s);
 
@@ -1046,8 +1045,8 @@ function smilies($s, $sample = false) {
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/smiley-facepalm.gif" alt=":facepalm" />',
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/like.gif" alt=":like" />',
 		'<img class="smiley" src="' . $a->get_baseurl() . '/images/dislike.gif" alt=":dislike" />',
-		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="red#matrix" />matrix</strong></a>',
-		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="red#" />matrix</strong></a>',
+		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="' . urlencode('red#matrix') . '" />matrix</strong></a>',
+		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="' . urlencode('red#') . '" />matrix</strong></a>',
 		'<a href="http://getzot.com"><strong>red<img class="smiley" src="' . $a->get_baseurl() . '/images/rm-16.png" alt="r#" />matrix</strong></a>'
 
 	);
@@ -1182,7 +1181,11 @@ function theme_attachments(&$item) {
 				$title = t('unknown.???');
 			$title .= ' ' . $r['length'] . ' ' . t('bytes');
 
-			$url = z_root() . '/magic?f=&hash=' . $item['author_xchan'] . '&dest=' . $r['href'] . '/' . $r['revision'];
+			require_once('include/identity.php');
+			if(is_foreigner($item['author_xchan']))
+				$url = $r['href'];
+			else
+				$url = z_root() . '/magic?f=&hash=' . $item['author_xchan'] . '&dest=' . $r['href'] . '/' . $r['revision'];
 			$s .= '<a href="' . $url . '" title="' . $title . '" class="attachlink"  >' . $icon . '</a>';
 			$attaches[] = array('title' => $title, 'url' => $url, 'icon' => $icon );
 
@@ -1850,9 +1853,17 @@ function ids_to_querystr($arr,$idx = 'id') {
 // author_xchan and owner_xchan. If $abook is true also include the abook info. 
 // This is needed in the API to save extra per item lookups there.
 
-function xchan_query(&$items,$abook = true) {
+function xchan_query(&$items,$abook = true,$effective_uid = 0) {
 	$arr = array();
 	if($items && count($items)) {
+
+		if($effective_uid) {
+			for($x = 0; $x < count($items); $x ++) {
+				$items[$x]['real_uid'] = $items[$x]['uid'];
+				$items[$x]['uid'] = $effective_uid;
+			}
+		}
+
 		foreach($items as $item) {
 			if($item['owner_xchan'] && (! in_array($item['owner_xchan'],$arr)))
 				$arr[] = "'" . dbesc($item['owner_xchan']) . "'";
@@ -2033,4 +2044,19 @@ function normalise_openid($s) {
 	return trim(str_replace(array('http://','https://'),array('',''),$s),'/');
 }
 
+// used in ajax endless scroll request to find out all the args that the master page was viewing.
+// This was using $_REQUEST, but $_REQUEST also contains all your cookies. So we're restricting it 
+// to $_GET. If this is used in a post handler, that decision may need to be considered. 
 
+function extra_query_args() {
+	$s = '';
+	if(count($_GET)) {
+		foreach($_GET as $k => $v) {
+			// these are request vars we don't want to duplicate
+			if(! in_array($k, array('q','f','zid','page','PHPSESSID'))) {
+				$s .= '&' . $k . '=' . $v;
+			}
+		}
+	}
+	return $s;
+}

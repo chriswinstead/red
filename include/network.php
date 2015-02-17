@@ -38,6 +38,7 @@ function z_fetch_url($url, $binary = false, $redirects = 0, $opts = array()) {
 		return false;
 
 	@curl_setopt($ch, CURLOPT_HEADER, true);
+	@curl_setopt($ch, CURLINFO_HEADER_OUT, true);
 	@curl_setopt($ch, CURLOPT_CAINFO, get_capath());
 	@curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 	@curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
@@ -47,11 +48,8 @@ function z_fetch_url($url, $binary = false, $redirects = 0, $opts = array()) {
 	if($ciphers)
 		@curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, $ciphers);
 
-	if (x($opts,'accept_content')){
-		@curl_setopt($ch,CURLOPT_HTTPHEADER, array (
-			"Accept: " . $opts['accept_content']
-		));
-	}
+	if(x($opts,'headers'))
+		@curl_setopt($ch, CURLOPT_HTTPHEADER, $opts['headers']);
 
 	if(x($opts,'timeout') && intval($opts['timeout'])) {
 		@curl_setopt($ch, CURLOPT_TIMEOUT, $opts['timeout']);
@@ -126,12 +124,39 @@ function z_fetch_url($url, $binary = false, $redirects = 0, $opts = array()) {
 	}
 	$ret['body'] = substr($s,strlen($header));
 	$ret['header'] = $header;
+
+	if(x($opts,'debug')) {
+		$ret['debug'] = $curl_info;
+	}
 	
 	@curl_close($ch);
 	return($ret);
 }
 
 
+/**
+ * @function z_post_url
+ * @param string $url
+ *    URL to post
+ * @param mixed $params
+ *   The full data to post in a HTTP "POST" operation. This parameter can 
+ *   either be passed as a urlencoded string like 'para1=val1&para2=val2&...' 
+ *   or as an array with the field name as key and field data as value. If value 
+ *   is an array, the Content-Type header will be set to multipart/form-data. 
+ * @param int $redirects = 0
+ *    internal use, recursion counter
+ * @param array $opts (optional parameters)
+ *    'accept_content' => supply Accept: header with 'accept_content' as the value
+ *    'timeout' => int seconds, default system config value or 60 seconds
+ *    'http_auth' => username:password
+ *    'novalidate' => do not validate SSL certs, default is to validate using our CA list
+ *    
+ * @returns array
+ *    'return_code' => HTTP return code or 0 if timeout or failure
+ *    'success' => boolean true (if HTTP 2xx result) or false
+ *    'header' => HTTP headers
+ *    'body' => fetched content
+ */
 
 
 function z_post_url($url,$params, $redirects = 0, $opts = array()) {
@@ -143,6 +168,7 @@ function z_post_url($url,$params, $redirects = 0, $opts = array()) {
 		return ret;
 
 	@curl_setopt($ch, CURLOPT_HEADER, true);
+	@curl_setopt($ch, CURLINFO_HEADER_OUT, true);
 	@curl_setopt($ch, CURLOPT_CAINFO, get_capath());
 	@curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
 	@curl_setopt($ch, CURLOPT_POST,1);
@@ -153,12 +179,6 @@ function z_post_url($url,$params, $redirects = 0, $opts = array()) {
 	if($ciphers)
 		@curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, $ciphers);
 
-
-	if (x($opts,'accept_content')){
-		@curl_setopt($ch,CURLOPT_HTTPHEADER, array (
-			"Accept: " . $opts['accept_content']
-		));
-	}
 	if(x($opts,'headers'))
 		@curl_setopt($ch, CURLOPT_HTTPHEADER, $opts['headers']);
 
@@ -235,10 +255,23 @@ function z_post_url($url,$params, $redirects = 0, $opts = array()) {
 
 	$ret['body'] = substr($s,strlen($header));
 	$ret['header'] = $header;
+
+	if(x($opts,'debug')) {
+		$ret['debug'] = $curl_info;
+	}
+
+
 	curl_close($ch);
 	return($ret);
 }
 
+
+function z_post_url_json($url,$params,$redirects = 0, $opts = array()) {
+
+	$opts = array_merge($opts,array('headers' => array('Content-Type: application/json')));
+	return z_post_url($url,json_encode($params),$redirects,$opts);
+
+}
 
 
 function json_return_and_die($x) {

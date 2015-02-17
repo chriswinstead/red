@@ -27,9 +27,12 @@ function identity_check_service_class($account_id) {
 		intval(PAGE_REMOVED)
 	);
 	if(! ($r && count($r))) {
+		$ret['total_identities'] = 0;
 		$ret['message'] = t('Unable to obtain identity information from database');
 		return $ret;
 	} 
+
+	$ret['total_identities'] = intval($r[0]['total']);
 
 	if(! service_class_allows($account_id,'total_identities',$r[0]['total'])) {
 		$result['message'] .= upgrade_message();
@@ -166,10 +169,12 @@ function create_identity($arr) {
 		$ret['message'] = t('No account identifier');
 		return $ret;
 	}
-	$ret=identity_check_service_class($arr['account_id']);
+	$ret = identity_check_service_class($arr['account_id']);
 	if (!$ret['success']) { 
 		return $ret;
 	}
+	// save this for auto_friending
+	$total_identities = $ret['total_identities'];
 
 	$nick = mb_strtolower(trim($arr['nickname']));
 	if(! $nick) {
@@ -215,22 +220,42 @@ function create_identity($arr) {
 	if(array_key_exists('primary', $arr))
 		$primary = intval($arr['primary']);
 
+
 	$perms_sql = '';
 
-	$defperms = site_default_perms();
+	$role_permissions = null;
 	$global_perms = get_perms();
-	foreach($defperms as $p => $v) {
-		$perms_keys .= ', ' . $global_perms[$p][0];
-		$perms_vals .= ', ' . intval($v);
+
+	if(array_key_exists('permissions_role',$arr) && $arr['permissions_role']) {
+		$role_permissions = get_role_perms($arr['permissions_role']);
+
+		if($role_permissions) {
+			foreach($role_permissions as $p => $v) {
+				if(strpos($p,'channel_') !== false) {
+					$perms_keys .= ', ' . $p;
+					$perms_vals .= ', ' . intval($v);
+				}
+				if($p === 'directory_publish')
+					$publish = intval($v);
+			}
+		}
 	}
+	else {
+		$defperms = site_default_perms();
+		foreach($defperms as $p => $v) {
+			$perms_keys .= ', ' . $global_perms[$p][0];
+			$perms_vals .= ', ' . intval($v);
+		}
+	}
+
 
 	$expire = get_config('system', 'default_expire_days');
 	$expire = (($expire===false)? '0': $expire);
-	
+
 	$r = q("insert into channel ( channel_account_id, channel_primary, 
 		channel_name, channel_address, channel_guid, channel_guid_sig,
-		channel_hash, channel_prvkey, channel_pubkey, channel_pageflags, channel_expire_days $perms_keys )
-		values ( %d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d $perms_vals ) ",
+		channel_hash, channel_prvkey, channel_pubkey, channel_pageflags, channel_expire_days, channel_timezone $perms_keys )
+		values ( %d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s' $perms_vals ) ",
 
 		intval($arr['account_id']),
 		intval($primary),
@@ -242,11 +267,10 @@ function create_identity($arr) {
 		dbesc($key['prvkey']),
 		dbesc($key['pubkey']),
 		intval($pageflags),
-		intval($expire)
+		intval($expire),
+		dbesc($a->timezone)
 	);
 			
-
-
 
 	$r = q("select * from channel where channel_account_id = %d 
 		and channel_guid = '%s' limit 1",
@@ -322,24 +346,69 @@ function create_identity($arr) {
 		dbesc($a->get_baseurl() . "/photo/profile/m/{$newuid}")
 	);
 
-	$r = q("insert into abook ( abook_account, abook_channel, abook_xchan, abook_closeness, abook_created, abook_updated, abook_flags )
-		values ( %d, %d, '%s', %d, '%s', '%s', %d ) ",
+	$myperms = 0;
+	if($role_permissions) {
+		$myperms = ((array_key_exists('perms_auto',$role_permissions) && $role_permissions['perms_auto']) ? intval($role_permissions['perms_accept']) : 0);
+	}
+
+	$r = q("insert into abook ( abook_account, abook_channel, abook_xchan, abook_closeness, abook_created, abook_updated, abook_flags, abook_my_perms )
+		values ( %d, %d, '%s', %d, '%s', '%s', %d, %d ) ",
 		intval($ret['channel']['channel_account_id']),
 		intval($newuid),
 		dbesc($hash),
 		intval(0),
 		dbesc(datetime_convert()),
 		dbesc(datetime_convert()),
-		intval(ABOOK_FLAG_SELF)
+		intval(ABOOK_FLAG_SELF),
+		intval($myperms)
 	);
 
 	if(intval($ret['channel']['channel_account_id'])) {
 
-		// Create a group with no members. This allows somebody to use it 
+		// Save our permissions role so we can perhaps call it up and modify it later.
+
+		if($role_permissions) {
+			set_pconfig($newuid,'system','permissions_role',$arr['permissions_role']);
+			if(array_key_exists('online',$role_permissions))
+				set_pconfig($newuid,'system','hide_presence',1-intval($role_permissions['online']));
+		}
+
+		// Create a group with yourself as a member. This allows somebody to use it 
 		// right away as a default group for new contacts. 
 
 		require_once('include/group.php');
 		group_add($newuid, t('Friends'));
+		group_add_member($newuid,t('Friends'),$ret['channel']['channel_hash']);
+
+		// if our role_permissions indicate that we're using a default collection ACL, add it.
+
+		if(is_array($role_permissions) && $role_permissions['default_collection']) {
+			$r = q("select hash from groups where uid = %d and name = '%s' limit 1",
+				intval($newuid),
+				dbesc( t('Friends') )
+			);
+			if($r) {
+				q("update channel set channel_allow_gid = '%s' where channel_id = %d limit 1",
+					dbesc('<' . $r[0]['hash'] . '>'),
+					intval($newuid)
+				);
+			}
+		}
+
+		// auto-follow any of the hub's pre-configured channel choices.
+		// Only do this if it's the first channel for this account;
+		// otherwise it could get annoying. Don't make this list too big
+		// or it will impact registration time.
+
+		$accts = get_config('system','auto_follow');
+		if(($accts) && (! $total_identities)) {
+			if(! is_array($accts))
+				$accts = array($accts);
+			foreach($accts as $acct) {
+				if(trim($acct))
+					new_contact($newuid,trim($acct),$ret['channel'],false);
+			}
+		}
 
 		call_hooks('register_account', $newuid);
 	
@@ -382,21 +451,22 @@ function set_default_login_identity($account_id,$channel_id,$force = true) {
 }
 
 /**
- * @function identity_basic_export($channel_id)
+ * @function identity_basic_export($channel_id,$items = false)
  *     Create an array representing the important channel information
  * which would be necessary to create a nomadic identity clone. This includes
  * most channel resources and connection information with the exception of content.
  *
  * @param int $channel_id
  *     Channel_id to export
- *
+ * @param boolean $items
+ *     Include channel posts (wall items), default false
  *
  * @returns array
  *     See function for details
  *
  */
 
-function identity_basic_export($channel_id) {
+function identity_basic_export($channel_id, $items = false) {
 
 	/*
 	 * Red basic channel export
@@ -469,7 +539,62 @@ function identity_basic_export($channel_id) {
 	}
 
 
+	// All other term types will be included in items, if requested.
+
+	$r = q("select * from term where type in (%d,%d) and uid = %d",
+		intval(TERM_SAVEDSEARCH),
+		intval(TERM_THING),
+		intval($channel_id)
+	);
+	if($r)
+		$ret['term'] = $r;
+
+	$r = q("select * from obj where obj_channel = %d",
+		intval($channel_id)
+	);
+
+	if($r)
+		$ret['obj'] = $r;
+
+
+	if(! $items)
+		return $ret;
+
+
+	$r = q("select likes.*, item.mid from likes left join item on likes.iid = item.id where likes.channel_id = %d",
+		intval($channel_id)
+	);
+
+	if($r)
+		$ret['likes'] = $r;
+
+
+	$r = q("select item_id.*, item.mid from item_id left join item on item_id.iid = item.id where item_id.uid = %d",
+		intval($channel_id)
+	);
+	
+	if($r)
+		$ret['item_id'] = $r;	
+
+	$key = get_config('system','prvkey');
+
+	// warning: this may run into memory limits on smaller systems
+
+	$r = q("select * from item where (item_flags & %d) and not (item_restrict & %d) and uid = %d",
+		intval(ITEM_WALL),
+		intval(ITEM_DELETED),
+		intval($channel_id)
+	);
+	if($r) {
+		$ret['item'] = array();
+		xchan_query($r);
+		$r = fetch_post_tags($r,true);
+		foreach($r as $rr)
+			$ret['item'][] = encode_item($rr,true);
+
+	}
 	return $ret;
+
 }
 
 
@@ -1042,7 +1167,7 @@ function advanced_profile(&$a) {
 
 		if($a->profile['with']) $profile['marital']['with'] = bbcode($a->profile['with']);
 
-		if(strlen($a->profile['howlong']) && $a->profile['howlong'] !== '0000-00-00 00:00:00') {
+		if(strlen($a->profile['howlong']) && $a->profile['howlong'] !== NULL_DATE) {
 				$profile['howlong'] = relative_date($a->profile['howlong'], t('for %1$d %2$s'));
 		}
 
@@ -1244,7 +1369,7 @@ function get_default_profile_photo($size = 175) {
 		$scheme = get_config('system','default_profile_photo');
 		if(! $scheme)
 			$scheme = 'rainbow_man';
-		return 'images/default_profile_photos/' . $scheme . '/' . $size . '.jpg';
+		return 'images/default_profile_photos/' . $scheme . '/' . $size . '.png';
 }
 
 
@@ -1400,4 +1525,36 @@ function get_profile_fields_advanced($filter = 0) {
 	return $x;
 }
 
+/**
+ * @function notifications_off($channel_id)
+ *    Clear notifyflags for a channel - most likely during bulk import of content or other activity that is likely
+ *    to generate huge amounts of undesired notifications.
+ * @param int $channel_id
+ *    The channel to disable notifications for
+ * @returns int
+ *    Current notification flag value. Send this to notifications_on() to restore the channel settings when finished
+ *    with the activity requiring notifications_off(); 
+ */
 
+
+
+function notifications_off($channel_id) {
+	$r = q("select channel_notifyflags from channel where channel_id = %d limit 1",
+		intval($channel_id)
+	);
+	$x = q("update channel set channel_notifyflags = 0 where channel_id = %d limit 1",
+		intval($channel_id)
+	);
+
+	return intval($r[0]['channel_notifyflags']);
+
+}
+
+
+function notifications_on($channel_id,$value) {
+	$x = q("update channel set channel_notifyflags = %d where channel_id = %d limit 1",
+		intval($value),
+		intval($channel_id)
+	);
+	return $x;
+}

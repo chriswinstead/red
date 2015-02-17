@@ -68,13 +68,31 @@ function collect_recipients($item,&$private_envelope) {
 		$private_envelope = false;
 
 		if(array_key_exists('public_policy',$item) && $item['public_policy'] !== 'self') {
-			$r = q("select abook_xchan from abook where abook_channel = %d and not (abook_flags & %d) ",
+			$r = q("select abook_xchan, xchan_network from abook left join xchan on abook_xchan = xchan_hash where abook_channel = %d and not (abook_flags & %d) ",
 				intval($item['uid']),
 				intval(ABOOK_FLAG_SELF|ABOOK_FLAG_PENDING|ABOOK_FLAG_ARCHIVED)
 			);
 			if($r) {
+
+				// filter out restrictive public_policy settings from remote networks
+				// which don't have this concept and will treat them as public.
+
+				$policy = substr($item['public_policy'],0,3);
 				foreach($r as $rr) {
-					$recipients[] = $rr['abook_xchan'];
+					switch($policy) {
+						case 'net':
+						case 'aut':
+						case 'sit':		
+						case 'any':
+						case 'con':
+							if($rr['xchan_network'] != 'zot')
+								break;
+						case 'pub':
+						case '':
+						default:
+							$recipients[] = $rr['abook_xchan'];
+							break;
+					}
 				}
 			}
 		}
@@ -144,7 +162,7 @@ function filter_insecure($channel_id,$arr) {
 
 
 function comments_are_now_closed($item) {
-	if($item['comments_closed'] !== '0000-00-00 00:00:00') {
+	if($item['comments_closed'] !== NULL_DATE) {
 		$d = datetime_convert();
 		if($d > $item['comments_closed'])
 			return true;
@@ -448,7 +466,7 @@ function post_activity_item($arr) {
 function get_public_feed($channel,$params) {
 
 	$type      = 'xml';
-	$begin     = '0000-00-00 00:00:00';
+	$begin     = NULL_DATE;
 	$end       = '';
 	$start     = 0;
 	$records   = 40;
@@ -459,7 +477,7 @@ function get_public_feed($channel,$params) {
 		$params = array();
 
 	$params['type']      = ((x($params,'type'))      ? $params['type']          : 'xml');
-	$params['begin']     = ((x($params,'begin'))     ? $params['begin']         : '0000-00-00 00:00:00');
+	$params['begin']     = ((x($params,'begin'))     ? $params['begin']         : NULL_DATE);
 	$params['end']       = ((x($params,'end'))       ? $params['end']           : datetime_convert('UTC','UTC','now'));
 	$params['start']     = ((x($params,'start'))     ? $params['start']         : 0);
 	$params['records']   = ((x($params,'records'))   ? $params['records']       : 40);
@@ -741,6 +759,8 @@ function get_item_elements($x) {
 	$arr = array();
 	$arr['body']         = (($x['body']) ? htmlspecialchars($x['body'],ENT_COMPAT,'UTF-8',false) : '');
 
+	$key = get_config('system','pubkey');
+
 	$maxlen = get_max_import_size();
 
 	if($maxlen && mb_strlen($arr['body']) > $maxlen) {
@@ -758,14 +778,14 @@ function get_item_elements($x) {
 
 	$arr['expires']      = ((x($x,'expires') && $x['expires']) 
 								? datetime_convert('UTC','UTC',$x['expires']) 
-								: '0000-00-00 00:00:00');
+								: NULL_DATE);
 
 	$arr['commented']    = ((x($x,'commented') && $x['commented']) 
 								? datetime_convert('UTC','UTC',$x['commented']) 
 								: $arr['created']);
 	$arr['comments_closed']    = ((x($x,'comments_closed') && $x['comments_closed']) 
 								? datetime_convert('UTC','UTC',$x['comments_closed']) 
-								: '0000-00-00 00:00:00');
+								: NULL_DATE);
 
 	$arr['title']        = (($x['title'])          ? htmlspecialchars($x['title'],          ENT_COMPAT,'UTF-8',false) : '');
 
@@ -795,7 +815,7 @@ function get_item_elements($x) {
 
 	$arr['sig']          = (($x['signature']) ? htmlspecialchars($x['signature'],  ENT_COMPAT,'UTF-8',false) : '');
 
-	$arr['diaspora_meta'] = (($x['diaspora_meta']) ? $x['diaspora_meta'] : '');	
+	$arr['diaspora_meta'] = (($x['diaspora_signature']) ? json_encode(crypto_encapsulate($x['diaspora_signature'],$key)) : '');
 	$arr['object']       = activity_sanitise($x['object']);
 	$arr['target']       = activity_sanitise($x['target']);
 
@@ -847,13 +867,33 @@ function get_item_elements($x) {
 	// We have to do that here because we need to cleanse the input and prevent bad stuff from getting in,
 	// and we need plaintext to do that. 
 
+
+
 	if(intval($arr['item_private'])) {
 		$arr['item_flags'] = $arr['item_flags'] | ITEM_OBSCURED;
-		$key = get_config('system','pubkey');
 		if($arr['title'])
 			$arr['title'] = json_encode(crypto_encapsulate($arr['title'],$key));
 		if($arr['body'])
 			$arr['body']  = json_encode(crypto_encapsulate($arr['body'],$key));
+	}
+
+
+	if(array_key_exists('revision',$x)) {
+		// extended export encoding
+
+		$arr['revision'] = $x['revision'];
+		$arr['allow_cid'] = $x['allow_cid'];
+		$arr['allow_gid'] = $x['allow_gid'];
+		$arr['deny_cid'] = $x['deny_cid'];
+		$arr['deny_gid'] = $x['deny_gid'];
+		$arr['layout_mid'] = $x['layout_mid'];
+		$arr['postopts'] = $x['postopts'];
+		$arr['resource_id'] = $x['resource_id'];
+		$arr['resource_type'] = $x['resource_type'];
+		$arr['item_restrict'] = $x['item_restrict'];
+		$arr['item_flags'] = $x['item_flags'];
+		$arr['attach'] = $x['attach'];
+
 	}
 
 	return $arr;
@@ -876,6 +916,10 @@ function import_author_xchan($x) {
 
 	if($x['network'] === 'rss') {
 		$y = import_author_rss($x);
+	}
+
+	if($x['network'] === 'unknown') {
+		$y = import_author_unknown($x);
 	}
 
 	return(($y) ? $y : false);
@@ -918,9 +962,9 @@ function import_author_rss($x) {
 		dbesc(($name) ? $name : t('(Unknown)')),
 		dbesc('rss')
 	);
-	if($r) {
+	if($r && $x['photo']) {
 
-		$photos = import_profile_photo($x['photo'],$x['url']);
+		$photos = import_profile_photo($x['photo']['src'],$x['url']);
 
 		if($photos) {
 			$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_url = '%s' and xchan_network = 'rss' limit 1",
@@ -940,8 +984,52 @@ function import_author_rss($x) {
 	
 }
 
+function import_author_unknown($x) {
 
-function encode_item($item) {
+	if(! $x['url'])
+		return false;
+
+	$r = q("select xchan_hash from xchan where xchan_network = 'unknown' and xchan_url = '%s' limit 1",
+		dbesc($x['url'])
+	);
+	if($r) {
+		logger('import_author_unknown: in cache' , LOGGER_DEBUG);
+		return $r[0]['xchan_hash'];
+	}
+
+	$name = trim($x['name']);
+
+	$r = q("insert into xchan ( xchan_hash, xchan_guid, xchan_url, xchan_name, xchan_network ) 
+		values ( '%s', '%s', '%s', '%s', '%s' )",
+		dbesc($x['url']),
+		dbesc($x['url']),
+		dbesc($x['url']),
+		dbesc(($name) ? $name : t('(Unknown)')),
+		dbesc('unknown')
+	);
+	if($r && $x['photo']) {
+
+		$photos = import_profile_photo($x['photo']['src'],$x['url']);
+
+		if($photos) {
+			$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_url = '%s' and xchan_network = 'unknown' limit 1",
+				dbesc(datetime_convert('UTC','UTC',$arr['photo_updated'])),
+				dbesc($photos[0]),
+				dbesc($photos[1]),
+				dbesc($photos[2]),
+				dbesc($photos[3]),
+				dbesc($x['url'])
+			);
+			if($r)
+				return $x['url'];
+		}
+	}
+
+	return false;
+	
+}
+
+function encode_item($item,$mirror = false) {
 	$x = array();
 	$x['type'] = 'activity';
 	$x['encoding'] = 'zot';
@@ -963,12 +1051,34 @@ function encode_item($item) {
 
 	$c_scope = map_scope($comment_scope);
 
+	$key = get_config('system','prvkey');
+
 	if(array_key_exists('item_flags',$item) && ($item['item_flags'] & ITEM_OBSCURED)) {
-		$key = get_config('system','prvkey');
 		if($item['title'])
 			$item['title'] = crypto_unencapsulate(json_decode_plus($item['title']),$key);
 		if($item['body'])
 			$item['body'] = crypto_unencapsulate(json_decode_plus($item['body']),$key);
+	}
+
+	// If we're trying to backup an item so that it's recoverable or for export/imprt, 
+	// add all the attributes we need to recover it
+
+	if($mirror) {
+		$x['id'] = $item['id'];
+		$x['parent'] = $item['parent'];
+		$x['uid'] = $item['uid'];
+		$x['allow_cid'] = $item['allow_cid'];
+		$x['allow_gid'] = $item['allow_gid'];
+		$x['deny_cid'] = $item['deny_cid'];
+		$x['deny_gid'] = $item['deny_gid'];
+		$x['revision'] = $item['revision'];
+		$x['layout_mid'] = $item['layout_mid'];
+		$x['postopts'] = $item['postopts'];
+		$x['resource_id'] = $item['resource_id'];
+		$x['resource_type'] = $item['resource_type'];
+		$x['item_restrict'] = $item['item_restrict'];
+		$x['item_flags'] = $item['item_flags'];
+		$x['attach'] = $item['attach'];
 	}
 
 
@@ -1003,7 +1113,7 @@ function encode_item($item) {
 	if($y = encode_item_flags($item))
 		$x['flags']       = $y;
 
-	if($item['comments_closed'] !== '0000-00-00 00:00:00')
+	if($item['comments_closed'] !== NULL_DATE)
 		$x['comments_closed'] = $item['comments_closed'];
 
 	$x['public_scope']    = $scope;
@@ -1015,6 +1125,9 @@ function encode_item($item) {
 
 	if($item['term'])
 		$x['tags']        = encode_item_terms($item['term']);
+
+	if($item['diaspora_meta'])
+		$x['diaspora_signature'] = crypto_unencapsulate(json_decode($item['diaspora_meta'],true),$key);
 
 	logger('encode_item: ' . print_r($x,true), LOGGER_DATA);
 
@@ -1242,8 +1355,8 @@ function get_mail_elements($x) {
 	$arr['title']        = (($x['title'])? htmlspecialchars($x['title'],ENT_COMPAT,'UTF-8',false) : '');
 
 	$arr['created']      = datetime_convert('UTC','UTC',$x['created']);
-	if((! array_key_exists('expires',$x)) || ($x['expires'] === '0000-00-00 00:00:00'))
-		$arr['expires'] = '0000-00-00 00:00:00';
+	if((! array_key_exists('expires',$x)) || ($x['expires'] === NULL_DATE))
+		$arr['expires'] = NULL_DATE;
 	else
 		$arr['expires']      = datetime_convert('UTC','UTC',$x['expires']);
 
@@ -1329,16 +1442,23 @@ function get_atom_elements($feed,$item,&$author) {
 	if($found_author) { 
 		$author['author_name'] = unxmlify($found_author->get_name());
 		$author['author_link'] = unxmlify($found_author->get_link());
+		$author['author_is_feed'] = false;
 	}
 	else {
 		$author['author_name'] = unxmlify($feed->get_title());
 		$author['author_link'] = unxmlify($feed->get_permalink());
+		$author['author_is_feed'] = true;
 	}
 
-	$res['mid'] = unxmlify($item->get_id());
+	if(substr($author['author_link'],-1,1) == '/')
+		$author['author_link'] = substr($author['author_link'],0,-1);
+
+	$res['mid'] = base64url_encode(unxmlify($item->get_id()));
 	$res['title'] = unxmlify($item->get_title());
 	$res['body'] = unxmlify($item->get_content());
 	$res['plink'] = unxmlify($item->get_link(0));
+	$res['item_flags'] = ITEM_RSS;
+
 
 	// removing the content of the title if its identically to the body
 	// This helps with auto generated titles e.g. from tumblr
@@ -1382,6 +1502,16 @@ function get_atom_elements($feed,$item,&$author) {
 		}
 	}
 
+	// check for a yahoo media element (github etc.)
+
+	if(! $author['author_photo']) {
+		$rawmedia = $item->get_item_tags(NAMESPACE_YMEDIA,'thumbnail');
+		if($rawmedia && $rawmedia[0]['attribs']['']['url']) {
+			$author['author_photo'] = strip_tags(unxmlify($rawmedia[0]['attribs']['']['url']));
+		}
+	}		   
+
+
 	// No photo/profile-link on the item - look at the feed level
 
 	if((! (x($author,'author_link'))) || (! (x($author,'author_photo')))) {
@@ -1389,8 +1519,10 @@ function get_atom_elements($feed,$item,&$author) {
 		if($rawauthor && $rawauthor[0]['child'][SIMPLEPIE_NAMESPACE_ATOM_10]['link']) {
 			$base = $rawauthor[0]['child'][SIMPLEPIE_NAMESPACE_ATOM_10]['link'];
 			foreach($base as $link) {
-				if($link['attribs']['']['rel'] === 'alternate' && (! $author['author_link']))
+				if($link['attribs']['']['rel'] === 'alternate' && (! $author['author_link'])) {
 					$author['author_link'] = unxmlify($link['attribs']['']['href']);
+					$author['author_is_feed'] = true;
+				}
 				if(! $author['author_photo']) {
 					if($link['attribs']['']['rel'] === 'photo' || $link['attribs']['']['rel'] === 'avatar')
 						$author['author_photo'] = unxmlify($link['attribs']['']['href']);
@@ -1438,7 +1570,7 @@ function get_atom_elements($feed,$item,&$author) {
 		// We could probably turn these old Friendica bbcode bookmarks into bookmark tags but we'd have to 
 		// create a term table item for them. For now just make sure they stay as links.
 
-		$res['body'] = preg_replace('/\[bookmark(.*?)\](.*?)\[\/bookmark\]','[url$1]$2[/url]',$res['body']);
+		$res['body'] = preg_replace('/\[bookmark(.*?)\](.*?)\[\/bookmark\]/','[url$1]$2[/url]',$res['body']);
 
 	}
 
@@ -1476,6 +1608,28 @@ function get_atom_elements($feed,$item,&$author) {
 
 		$res['body'] = escape_tags($res['body']);
 	}
+
+	if($res['plink'] && $res['title']) {
+		$res['body'] = '#^[url=' . $res['plink'] . ']' . $res['title'] . '[/url]' . "\n\n" . $res['body'];
+		$terms = array();
+		$terms[] = array(
+			'otype' => TERM_OBJ_POST,
+			'type'  => TERM_BOOKMARK,
+			'url'   => $res['plink'],
+			'term'  => $res['title'],
+		);
+	}
+	elseif($res['plink']) {
+		$res['body'] = '#^[url]' . $res['plink'] . '[/url]' . "\n\n" . $res['body'];
+		$terms = array();
+		$terms[] = array(
+			'otype' => TERM_OBJ_POST,
+			'type'  => TERM_BOOKMARK,
+			'url'   => $res['plink'],
+			'term'  => $res['plink'],
+		);
+	}
+
 
 	$private = $item->get_item_tags(NAMESPACE_DFRN,'private');
 	if($private && intval($private[0]['data']) > 0)
@@ -1565,7 +1719,8 @@ function get_atom_elements($feed,$item,&$author) {
 
 	$cats = $item->get_categories();
 	if($cats) {
-		$terms = array();
+		if(is_null($terms))
+			$terms = array();
 		foreach($cats as $cat) {
 			$term = $cat->get_term();
 			if(! $term)
@@ -1590,8 +1745,10 @@ function get_atom_elements($feed,$item,&$author) {
 				);
 			}		
 		}
-		$res['term'] =  $terms;
 	}
+
+	if(! is_null($terms))
+		$res['term'] =  $terms;
 
 	$attach = $item->get_enclosures();
 	if($attach) {
@@ -1692,6 +1849,7 @@ function get_atom_elements($feed,$item,&$author) {
 
 	call_hooks('parse_atom', $arr);
 	logger('get_atom_elements: author: ' . print_r($author,true),LOGGER_DATA);
+
 	logger('get_atom_elements: ' . print_r($res,true),LOGGER_DATA);
 
 	return $res;
@@ -1839,9 +1997,9 @@ function item_store($arr,$allow_exec = false) {
 	$arr['owner_xchan']   = ((x($arr,'owner_xchan'))   ? notags(trim($arr['owner_xchan']))   : '');
 	$arr['created']       = ((x($arr,'created') !== false) ? datetime_convert('UTC','UTC',$arr['created']) : datetime_convert());
 	$arr['edited']        = ((x($arr,'edited')  !== false) ? datetime_convert('UTC','UTC',$arr['edited'])  : datetime_convert());
-	$arr['expires']       = ((x($arr,'expires')  !== false) ? datetime_convert('UTC','UTC',$arr['expires'])  : '0000-00-00 00:00:00');
+	$arr['expires']       = ((x($arr,'expires')  !== false) ? datetime_convert('UTC','UTC',$arr['expires'])  : NULL_DATE);
 	$arr['commented']     = ((x($arr,'commented')  !== false) ? datetime_convert('UTC','UTC',$arr['commented'])  : datetime_convert());
-	$arr['comments_closed'] = ((x($arr,'comments_closed')  !== false) ? datetime_convert('UTC','UTC',$arr['comments_closed'])  : '0000-00-00 00:00:00');
+	$arr['comments_closed'] = ((x($arr,'comments_closed')  !== false) ? datetime_convert('UTC','UTC',$arr['comments_closed'])  : NULL_DATE);
 
 	$arr['received']      = datetime_convert();
 	$arr['changed']       = datetime_convert();
@@ -2248,7 +2406,7 @@ function item_store_update($arr,$allow_exec = false) {
 	$arr['edited']        = ((x($arr,'edited')  !== false) ? datetime_convert('UTC','UTC',$arr['edited'])  : datetime_convert());
 	$arr['expires']       = ((x($arr,'expires')  !== false) ? datetime_convert('UTC','UTC',$arr['expires'])  : $orig[0]['expires']);
 
-	if(array_key_exists('comments_closed',$arr) && $arr['comments_closed'] != '0000-00-00 00:00:00')
+	if(array_key_exists('comments_closed',$arr) && $arr['comments_closed'] != NULL_DATE)
 		$arr['comments_closed'] = datetime_convert('UTC','UTC',$arr['comments_closed']);
 	else
 		$arr['comments_closed'] = $orig[0]['comments_closed'];
@@ -2370,18 +2528,10 @@ function store_diaspora_comment_sig($datarray, $channel, $parent_item, $post_id)
 		return;
 	}
 
-	$body = $datarray['body'];
-	if(array_key_exists('item_flags',$datarray) && ($datarray['item_flags'] & ITEM_OBSCURED)) {
-		$key = get_config('system','prvkey');
-		if($datarray['body'])
-			$body = crypto_unencapsulate(json_decode($datarray['body'],true),$key);
-	}
+	require_once('include/bb2diaspora.php');
+	$signed_body = bb2diaspora_itembody($datarray);
 
 	logger('mod_item: storing diaspora comment signature',LOGGER_DEBUG);
-
-	require_once('include/bb2diaspora.php');
-
-	$signed_body = html_entity_decode(bb2diaspora($body));
 
 	$diaspora_handle = $channel['channel_address'] . '@' . get_app()->get_hostname();
 
@@ -2394,8 +2544,11 @@ function store_diaspora_comment_sig($datarray, $channel, $parent_item, $post_id)
 
 	$x = array('signer' => $diaspora_handle, 'body' => $signed_body, 'signed_text' => $signed_text, 'signature' => base64_encode($authorsig));
 
+	$key = get_config('system','pubkey');
+	$y = crypto_encapsulate(json_encode($x),$key);
+
 	$r = q("update item set diaspora_meta = '%s' where id = %d limit 1",
-		dbesc(json_encode($x)),
+		dbesc(json_encode($y)),
 		intval($post_id) 
 	);
 
@@ -3018,7 +3171,7 @@ function mail_store($arr) {
 	$arr['from_xchan']    = ((x($arr,'from_xchan'))  ? notags(trim($arr['from_xchan']))  : '');
 	$arr['to_xchan']   = ((x($arr,'to_xchan'))   ? notags(trim($arr['to_xchan']))   : '');
 	$arr['created']       = ((x($arr,'created') !== false) ? datetime_convert('UTC','UTC',$arr['created']) : datetime_convert());
-	$arr['expires']       = ((x($arr,'expires') !== false) ? datetime_convert('UTC','UTC',$arr['expires']) : '0000-00-00 00:00:00');
+	$arr['expires']       = ((x($arr,'expires') !== false) ? datetime_convert('UTC','UTC',$arr['expires']) : NULL_DATE);
 	$arr['title']         = ((x($arr,'title'))         ? notags(trim($arr['title']))         : '');
 	$arr['parent_mid']    = ((x($arr,'parent_mid'))    ? notags(trim($arr['parent_mid']))    : '');
 	$arr['body']          = ((x($arr,'body'))          ? trim($arr['body'])                  : '');
@@ -3101,7 +3254,6 @@ function mail_store($arr) {
 }
 
 
-
 /**
  *
  * consume_feed - process atom feed and update anything/everything we might need to update
@@ -3169,7 +3321,7 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 
 			if($deleted && is_array($contact)) {
 				$r = q("SELECT * from item where mid = '%s' and author_xchan = '%s' and uid = %d limit 1",
-					dbesc($mid),
+					dbesc(base64url_encode($mid)),
 					dbesc($contact['xchan_hash']),
 					intval($importer['channel_id'])
 				);
@@ -3178,7 +3330,7 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 					$item = $r[0];
 
 					if(! ($item['item_restrict'] & ITEM_DELETED)) {
-						logger('consume_feed: deleting item ' . $item['id'] . ' mid=' . $item['mid'], LOGGER_DEBUG);
+						logger('consume_feed: deleting item ' . $item['id'] . ' mid=' . base64url_decode($item['mid']), LOGGER_DEBUG);
 						drop_item($item['id'],false);
 					}
 				}	
@@ -3197,14 +3349,14 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 		foreach($items as $item) {
 
 			$is_reply = false;
-			$item_id = $item->get_id();
+			$item_id = base64url_encode($item->get_id());
 
 			logger('consume_feed: processing ' . $item_id, LOGGER_DEBUG);
 
 			$rawthread = $item->get_item_tags( NAMESPACE_THREAD,'in-reply-to');
 			if(isset($rawthread[0]['attribs']['']['ref'])) {
 				$is_reply = true;
-				$parent_mid = $rawthread[0]['attribs']['']['ref'];
+				$parent_mid = base64url_encode($rawthread[0]['attribs']['']['ref']);
 			}
 
 			if($is_reply) {
@@ -3215,16 +3367,31 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 
 				// Have we seen it? If not, import it.
 
-				$item_id  = $item->get_id();
+				$item_id  = base64url_encode($item->get_id());
 				$author = array();
 				$datarray = get_atom_elements($feed,$item,$author);
 
-				if(! x($author,'author_name'))
+				if((! x($author,'author_name')) || ($author['author_is_feed']))
 					$author['author_name'] = $contact['xchan_name'];
-				if(! x($author,'author_link'))
+				if((! x($author,'author_link')) || ($author['author_is_feed']))
 					$author['author_link'] = $contact['xchan_url'];
-				if(! x($author,'author_photo')) 
+				if((! x($author,'author_photo'))|| ($author['author_is_feed'])) 
 					$author['author_photo'] = $contact['xchan_photo_m'];
+
+				$datarray['author_xchan'] = '';
+
+				if($author['author_link'] != $contact['xchan_url']) {
+					$x = import_author_unknown(array('name' => $author['author_name'],'url' => $author['author_link'],'photo' => array('src' => $author['author_photo'])));
+					if($x) 
+						$datarray['author_xchan'] = $x;
+					
+				}
+				if(! $datarray['author_xchan'])
+					$datarray['author_xchan'] = $contact['xchan_hash'];
+
+
+				$datarray['owner_xchan'] = $contact['xchan_hash'];
+
 
 				$r = q("SELECT edited FROM item WHERE mid = '%s' AND uid = %d LIMIT 1",
 					dbesc($item_id),
@@ -3249,10 +3416,6 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 				$datarray['parent_mid'] = $parent_mid;
 				$datarray['uid'] = $importer['channel_id'];
 
-//FIXME
-				$datarray['owner_xchan'] = $datarray['author_xchan'] = $contact['xchan_hash'];
-
-				// FIXME pull out the author and owner
 
 
 				logger('consume_feed: ' . print_r($datarray,true),LOGGER_DATA);
@@ -3266,16 +3429,16 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 
 				// Head post of a conversation. Have we seen it? If not, import it.
 
-				$item_id  = $item->get_id();
+				$item_id  = base64url_encode($item->get_id());
 				$author = array();
 				$datarray = get_atom_elements($feed,$item,$author);
 
 				if(is_array($contact)) {
-					if(! x($author,'author_name'))
+					if((! x($author,'author_name')) || ($author['author_is_feed']))
 						$author['author_name'] = $contact['xchan_name'];
-					if(! x($author,'author_link'))
+					if((! x($author,'author_link')) || ($author['author_is_feed']))
 						$author['author_link'] = $contact['xchan_url'];
-					if(! x($author,'author_photo'))
+					if((! x($author,'author_photo'))|| ($author['author_is_feed'])) 
 						$author['author_photo'] = $contact['xchan_photo_m'];
 				}
 
@@ -3283,6 +3446,20 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 					logger('consume_feed: no author information! ' . print_r($author,true));
 					continue;
 				}
+
+				$datarray['author_xchan'] = '';
+
+				if($author['author_link'] != $contact['xchan_url']) {
+					$x = import_author_unknown(array('name' => $author['author_name'],'url' => $author['author_link'],'photo' => array('src' => $author['author_photo'])));
+					if($x) 
+						$datarray['author_xchan'] = $x;
+					
+				}
+				if(! $datarray['author_xchan'])
+					$datarray['author_xchan'] = $contact['xchan_hash'];
+
+
+				$datarray['owner_xchan'] = $contact['xchan_hash'];
 
 
 				$r = q("SELECT edited FROM item WHERE mid = '%s' AND uid = %d LIMIT 1",
@@ -3309,9 +3486,7 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 
 				$datarray['parent_mid'] = $item_id;
 				$datarray['uid'] = $importer['channel_id'];
-//FIXME
-				$datarray['owner_xchan'] = $datarray['author_xchan'] = $contact['xchan_hash'];
-				
+
 				if(! link_compare($author['owner_link'],$contact['xchan_url'])) {
 					logger('consume_feed: Correcting item owner.', LOGGER_DEBUG);
 					$author['owner_name']   = $contact['name'];
@@ -3319,7 +3494,7 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 					$author['owner_avatar'] = $contact['thumb'];
 				}
 
-				logger('consume_feed: author ' . print_r($author,true)); 
+				logger('consume_feed: author ' . print_r($author,true),LOGGER_DEBUG); 
 
 
 				logger('consume_feed: ' . print_r($datarray,true),LOGGER_DATA);
@@ -3337,8 +3512,7 @@ function consume_feed($xml,$importer,&$contact,$pass = 0) {
 
 function update_feed_item($uid,$datarray) {
 
-	logger('update_feed_item: ' . $uid . ' ' . print_r($datarray,true), LOGGER_DATA);
-
+	logger('update_feed_item: not implemented! ' . $uid . ' ' . print_r($datarray,true), LOGGER_DATA);
 
 }
 
@@ -4076,7 +4250,7 @@ function zot_feed($uid,$observer_xchan,$mindate) {
 	$result = array();
 	$mindate = datetime_convert('UTC','UTC',$mindate);
 	if(! $mindate)
-		$mindate = '0000-00-00 00:00:00';
+		$mindate = NULL_DATE;
 
 	$mindate = dbesc($mindate);
 
@@ -4092,7 +4266,7 @@ function zot_feed($uid,$observer_xchan,$mindate) {
 		$sql_extra = item_permissions_sql($uid);
 	}
 
-	if($mindate != '0000-00-00 00:00:00') {
+	if($mindate != NULL_DATE) {
 		$sql_extra .= " and ( created > '$mindate' or edited > '$mindate' ) ";
 		$limit = "";
 	}

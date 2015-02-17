@@ -9,6 +9,7 @@
 /* generals */
 html {
 	height: 100%;
+	font-size: 100%;
 }
 
 body {
@@ -22,6 +23,19 @@ body {
 	margin: 0px;
 	height: 100%;
 }
+
+h1, .h1, h2, .h2 {
+	font-size: 1.667em;
+}
+
+h3, .h3, h4, .h4 {
+	font-size: 1.334em;
+}
+
+h5, .h5, h6, .h6 {
+	font-size: 0.75rem;
+}
+
 .jslider {
 	font-family: arial,freesans,sans-serif;
 }
@@ -48,7 +62,7 @@ abbr {
 }
 
 a, a:visited, a:link, .fakelink, .fakelink:visited, .fakelink:link { 
-	font-weight: bold;
+	font-weight: $link_font_weight;
 	color: $link_colour; 
 	text-decoration: none; 
 }
@@ -59,6 +73,13 @@ a:hover, .fakelink:hover { color: $link_colour; text-decoration: underline; }
 	cursor: pointer;
 }
 
+a.btn-default {
+	color: #333;
+}
+
+a.btn-success {
+	color: #fff;
+}
 
 input[type="text"],
 input[type="password"],
@@ -114,13 +135,7 @@ pre {
 	border:1px solid $pre_borderc;
 }
 
-blockquote {
-	background-color: $blockquote_bgcolour;
-	border-left: 4px solid $blockquote_bordercolour;
-	padding: 0.4em;
-	color: $blockquote_colour;
-	margin-left: 20px;
-}
+
 
 .ccollapse-wrapper {
 	border: 1px solid #CCC;
@@ -147,6 +162,19 @@ nav,
 header {
 	opacity: $nav_float_min_opacity;
 	filter:alpha(opacity=$nav_percent_min_opacity);
+}
+
+#powered-by {
+	font-size: 0.5rem;
+	position: absolute;
+	top: 50px;
+	left: 16px;
+}
+
+#powered-by img {
+	margin-top: -2px;
+	height: 10px;
+	width: 10px;
 }
 
 .error-message {
@@ -242,21 +270,6 @@ footer {
 .fakebutton {
 	margin-top: 15px;
 	margin-bottom: 15px;
-}
-
-aside ul {
-	list-style-type: none;
-	margin: 0;
-	padding: 0;
-	/* border-left: 1px solid #eee; This and a 5px left border on the li is "interesting" 
-	   to delineate the list from the surrounding bits 
-	*/
-}
-
-aside li {
-	margin-top: 5px;
-	/* in order to achieve consistent indentation cross-browser, set margin-left on the li element e.g. */
-	/* margin-left: 10px; */
 }
 
 /*TODO: we should use one class for all this. */
@@ -414,7 +427,6 @@ aside li {
 	margin-bottom: 15px;
 }
 
-
 .fn {
 	font-weight: bold;
 	font-size: 16px;
@@ -429,11 +441,6 @@ aside li {
 	-moz-border-radius: $radiuspx;
 	-webkit-border-radius: $radiuspx;
 	border-radius: $radiuspx;
-}
-
-.vcard .title {
-	margin-bottom: 10px;
-
 }
 
 .vcard dl  {
@@ -499,6 +506,11 @@ aside li {
 	width: 197px;
 	height: 197px;
 }
+
+#profile-photo-wrapper {
+	margin-top: 10px;
+}
+
 
 #profile-in-dir-yes-label,
 #profile-in-dir-no-label,
@@ -675,10 +687,6 @@ aside li {
   margin: auto;
 }
 
-.photo-top-image-wrapper, .photo-album-image-wrapper {
-	width: 240px;
-}
-
 .photo-top-photo-link, .photo-album-photo-link {
   display: block;
   width: 100%;
@@ -686,15 +694,6 @@ aside li {
   height: 0;
   padding: 75% 0 0 0;
   overflow: hidden;
-}
-
-.photo-album-image-wrapper .caption {
- 	background-color: $acpopup_bgcolour;
- 	border-bottom: 2px solid $acpopup_bordercolour;
-}
-
-.photo-top-album-name {
- 	background-color: $acpopup_bgcolour;
 }
 
 #photos-upload-perms-menu, #photos-upload-perms-menu:visited, #photos-upload-perms-menu:link {
@@ -859,14 +858,6 @@ aside li {
 	margin-bottom: 25px;
 }
 
-#search-submit {
-	margin-left: 15px;
-}
-
-#search-box {
-	margin-bottom: 25px;
-}
-
 #nav-searchbar {
 	float: right;
 	margin-top: 2px;
@@ -906,15 +897,14 @@ aside li {
 #search-text {
 	border: 1px solid #ccc;
 	font-size: 1em;
+	border-top-right-radius: 0px;
+	border-bottom-right-radius: 0px;
 }
 
-#search-text::-webkit-input-placeholder {
-	font-family: FontAwesome;
+#netsearch-box .btn-sm {
+	padding: 2.78px 10px;
 }
 
-#search-text::-moz-placeholder {
-	font-family: FontAwesome;
-}
 
 .profile-clear {
 	clear: both;
@@ -1984,6 +1974,10 @@ img.mail-list-sender-photo {
 
 /* conversation */
 
+.wall-item-title {
+   font-size: $font_size;
+}
+
 .hide-comments-outer,
 .thread-wrapper .wall-item-comment-wrapper,
 .wall-item-content-wrapper.comment {
@@ -2073,11 +2067,11 @@ img.mail-list-sender-photo {
 
 .wall-item-ago {
 	color: #777;
-	font-size: 0.8em;
+	font-size: 0.833em;
 }
 
 .wall-item-ago i {
-	font-size: 0.8em;
+	font-size: 0.833em;
 }
 
 .wall-item-content {
@@ -2095,7 +2089,7 @@ img.mail-list-sender-photo {
 }
 
 .comment-icon {
-	font-size: 0.8em;
+	font-size: 0.833em;
 	color: $toolicon_colour;
 }
 
@@ -2121,7 +2115,7 @@ img.mail-list-sender-photo {
 	border-bottom-right-radius: $radiuspx;
 	border-bottom-left-radius: $radiuspx;
 	text-align: center;
-	font-weight: bold;
+	font-size: $body_font_size;
 	color: $link_colour;
 	cursor: pointer;	
 }
@@ -2184,6 +2178,10 @@ img.mail-list-sender-photo {
 	background-color: $abookself_bgcolour;
 }
 
+.abook-pending-contact, .abook-permschange {
+	background: $abook_changebg;
+}
+
 .online-now {
 	color: red;
 	cursor: pointer;
@@ -2213,10 +2211,6 @@ nav img {
 
 nav ul li {
 	max-height: 50px
-}
-
-nav .badge {
-	border-radius: $radiuspx;
 }
 
 nav .dropdown-menu {
@@ -2260,8 +2254,20 @@ nav .dropdown-menu>li>a:hover,nav .dropdown-menu>li>a:focus{
 }
 
 /* bootstrap overrides */
+
+
 blockquote {
-	font-size: 1em;
+	font-size: $font_size;
+	font-style: italic;
+	background-color: $blockquote_bgcolour;
+	border-left: 3px solid $blockquote_bordercolour;
+	padding: 0.4em;
+	color: $blockquote_colour;
+	margin: 0px 0px 0px 20px;
+}
+
+.badge {
+	border-radius: $radiuspx;
 }
 
 .dropdown-menu {
@@ -2279,6 +2285,15 @@ blockquote {
     	color: $dropdown_txtcolhover; 
     	background-color: $dropdown_bgcolhover; 
 	$dropdown_bgimghover
+}
+
+aside .nav > li > a:hover, aside .nav > li > a:focus {
+	 text-decoration: $navtabs_decohover;
+    background-color: $navaside_bghover;
+}
+
+aside .nav-pills > li > a {
+    padding: 6px 10px;
 }
 
 .dropdown-menu img {
@@ -2404,20 +2419,27 @@ blockquote {
 .btn-default {
     	background-color: $editbuttons_bgcolour;
     	border-color: $editbuttons_bordercolour;
-		color: $editbuttons_colour;
+	color: $editbuttons_colour;
     	text-shadow: none;
     	box-shadow: none;
 }
 
 .btn-default:hover, .btn-default:focus, .btn-default:active .btn-default.active {
-    	background-color: $editbuttons_bghover;
-		border-color: $editbuttons_bordercolourhover;
-		color: $input_colourhover;
-		text-decoration: $input_decohover;
+	background-color: $editbuttons_bghover;
+	border-color: $editbuttons_bordercolourhover;
+	color: $input_colourhover;
+	text-decoration: $input_decohover;
 }
 
 .btn-default.btn-sm:hover, .btn-default.btn-sm:focus, .btn-default.btn-sm:active .btn-default.btn-sm.active {
     	text-decoration: none;
+}
+
+.alert-info {
+	color: $alert_txtcolour;
+	background-color:$alert_bgcolour;
+	border-color: $alert_bordercol;
+	background-image: linear-gradient(to bottom, $alert_bgcolour 0px, $alert_gradientcol 100%);
 }
 
 .well {
@@ -2425,6 +2447,27 @@ blockquote {
 	border: 1px solid $advperm_bordercol;
 	background-image: linear-gradient(to bottom, $advperm_gradientcol 0px, $advperm_bgcolour 100%);
 }
+
+.section-title-wrapper {
+	padding: 7px 10px;
+	background-color: $item_colour;
+	border-radius: $radiuspx;
+	margin-bottom: 10px;
+}
+
+.section-title-wrapper h2 {
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+.section-title-submenu {
+	margin-top: 10px;
+}
+
+.section-title-submenu a {
+	margin-right: 10px;
+}
+
 
 @media screen and (max-width: 767px) {
 	aside#region_1 {
@@ -2466,4 +2509,9 @@ blockquote {
 		width: calc(100% - 10px);
 	}
 
+}
+
+.shareable_element_text {
+	height: 300px;
+	width: 300px;
 }

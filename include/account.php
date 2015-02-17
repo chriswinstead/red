@@ -108,7 +108,7 @@ function create_account($arr) {
 	$parent      = ((x($arr,'parent'))        ? intval($arr['parent'])             : 0 );
 	$flags       = ((x($arr,'account_flags')) ? intval($arr['account_flags'])      : ACCOUNT_OK);
 	$roles       = ((x($arr,'account_roles')) ? intval($arr['account_roles'])      : 0 );
-	$expires     = ((x($arr,'expires'))       ? intval($arr['expires'])            : '0000-00-00 00:00:00');
+	$expires     = ((x($arr,'expires'))       ? intval($arr['expires'])            : NULL_DATE);
 	
 	$default_service_class = get_config('system','default_service_class');
 
@@ -511,9 +511,10 @@ function user_approve($hash) {
 function downgrade_accounts() {
 
 	$r = q("select * from account where not ( account_flags & %d ) 
-		and account_expires != '0000-00-00 00:00:00' 
+		and account_expires != '%s' 
 		and account_expires < UTC_TIMESTAMP() ",
-		intval(ACCOUNT_EXPIRED)
+		intval(ACCOUNT_EXPIRED),
+		dbesc(NULL_DATE)
 	);
 
 	if(! $r)
@@ -528,7 +529,7 @@ function downgrade_accounts() {
 			$x = q("UPDATE account set account_service_class = '%s', account_expires = '%s'
 				where account_id = %d limit 1",
 				dbesc($basic),
-				dbesc('0000-00-00 00:00:00'),
+				dbesc(NULL_DATE),
 				intval($rr['account_id'])
 			);
 			$ret = array('account' => $rr);
@@ -614,6 +615,29 @@ function service_class_fetch($uid,$property) {
 
 	return((array_key_exists($property,$arr)) ? $arr[$property] : false);
 }
+
+// like service_class_fetch but queries by account rather than channel
+
+function account_service_class_fetch($aid,$property) {
+
+	$r = q("select account_service_class as service_class from account where account_id = %d limit 1",
+		intval($aid)
+	);
+	if($r !== false && count($r)) {
+		$service_class = $r[0]['service_class'];
+	}
+
+	if(! x($service_class))
+		return false; // everything is allowed
+
+	$arr = get_config('service_class',$service_class);
+
+	if(! is_array($arr) || (! count($arr)))
+		return false;
+
+	return((array_key_exists($property,$arr)) ? $arr[$property] : false);
+}
+
 
 function upgrade_link($bbcode = false) {
 	$l = get_config('service_class','upgrade_link');

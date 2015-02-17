@@ -81,18 +81,22 @@ function item_post(&$a) {
 	$layout_mid  = ((x($_REQUEST,'layout_mid'))  ? escape_tags($_REQUEST['layout_mid']): '');
 	$plink       = ((x($_REQUEST,'permalink'))   ? escape_tags($_REQUEST['permalink']) : '');
 
+	// allow API to bulk load a bunch of imported items with sending out a bunch of posts. 
+	$nopush      = ((x($_REQUEST,'nopush'))      ? intval($_REQUEST['nopush'])         : 0);
+
 	/*
-	Check service class limits
-	*/
+	 * Check service class limits
+	 */
 	if (local_user() && !(x($_REQUEST,'parent')) && !(x($_REQUEST,'post_id'))) {
-	$ret=item_check_service_class(local_user(),x($_REQUEST,'webpage'));
-	if (!$ret['success']) { 
-          notice( t($ret['message']) . EOL) ;
-      	  if(x($_REQUEST,'return')) 
+		$ret = item_check_service_class(local_user(),x($_REQUEST,'webpage'));
+		if (!$ret['success']) { 
+			notice( t($ret['message']) . EOL) ;
+			if(x($_REQUEST,'return')) 
 				goaway($a->get_baseurl() . "/" . $return_path );
 			killme();
+		}
 	}
-	}
+
 	if($pagetitle) {
 		require_once('library/urlify/URLify.php');
 		$pagetitle = strtolower(URLify::transliterate($pagetitle));
@@ -384,13 +388,13 @@ function item_post(&$a) {
 	}
 	
 
-	$expires = '0000-00-00 00:00:00';
+	$expires = NULL_DATE;
 
 	if(feature_enabled($profile_uid,'content_expire')) {
 		if(x($_REQUEST,'expire')) {
 			$expires = datetime_convert(date_default_timezone_get(),'UTC', $_REQUEST['expire']);
 			if($expires <= datetime_convert())
-				$expires = '0000-00-00 00:00:00';
+				$expires = NULL_DATE;
 		}
 	}
 
@@ -780,7 +784,9 @@ function item_post(&$a) {
 
 		update_remote_id($channel,$post_id,$webpage,$pagetitle,$namespace,$remote_id,$mid);
 
-		proc_run('php', "include/notifier.php", 'edit_post', $post_id);
+		if(! $nopush)
+			proc_run('php', "include/notifier.php", 'edit_post', $post_id);
+
 		if((x($_REQUEST,'return')) && strlen($return_path)) {
 			logger('return: ' . $return_path);
 			goaway($a->get_baseurl() . "/" . $return_path );
@@ -854,7 +860,9 @@ function item_post(&$a) {
 	if($parent) {
 		// Store the comment signature information in case we need to relay to Diaspora
 //FIXME
-		store_diaspora_comment_sig($datarray,$channel,$parent_item, $post_id);
+		$ditem = $datarray;
+		$ditem['author'] = $observer;
+		store_diaspora_comment_sig($ditem,$channel,$parent_item, $post_id);
 	}
 
 	update_remote_id($channel,$post_id,$webpage,$pagetitle,$namespace,$remote_id,$mid);
@@ -864,7 +872,8 @@ function item_post(&$a) {
 
 	call_hooks('post_local_end', $datarray);
 
-	proc_run('php', 'include/notifier.php', $notify_type, $post_id);
+	if(! $nopush)
+		proc_run('php', 'include/notifier.php', $notify_type, $post_id);
 
 	logger('post_complete');
 

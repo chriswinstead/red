@@ -46,6 +46,12 @@ function authenticate_success($user_record, $login_initial = false, $interactive
 
 	if(($a->module !== 'home') && x($_SESSION,'login_return_url') && strlen($_SESSION['login_return_url'])) {
 		$return_url = $_SESSION['login_return_url'];
+
+		// don't let members get redirected to a raw ajax page update - this can happen
+		// if DHCP changes the IP address at an unfortunate time and paranoia is turned on
+		if(strstr($return_url,'update_'))
+			$return_url = '';
+
 		unset($_SESSION['login_return_url']);
 		goaway($a->get_baseurl() . '/' . $return_url);
 	}
@@ -75,6 +81,19 @@ function change_channel($change_channel) {
 			intval(get_account_id()),
 			intval(PAGE_REMOVED)
 		);
+
+		// It's not there.  Is this an administrator, and is this the sys channel?
+	if (is_developer()) {
+		if (! $r) {
+			if (is_site_admin()) {
+				$r = q("select channel.*, xchan.* from channel left join xchan on channel.channel_hash = xchan.xchan_hash where channel_id = %d and ( channel_pageflags & %d) and not (channel_pageflags & %d ) limit 1",
+				intval($change_channel),
+				intval(PAGE_SYSTEM),
+				intval(PAGE_REMOVED)
+				);
+			}
+		}
+	}
 
 		if($r) {
 			$hash = $r[0]['channel_hash'];

@@ -67,7 +67,7 @@ function onepoll_run($argv, $argc){
 
 	logger("onepoll: poll: ({$contact['id']}) IMPORTER: {$importer['xchan_name']}, CONTACT: {$contact['xchan_name']}");
 
-	$last_update = ((($contact['abook_updated'] === $contact['abook_created']) || ($contact['abook_updated'] === '0000-00-00 00:00:00'))
+	$last_update = ((($contact['abook_updated'] === $contact['abook_created']) || ($contact['abook_updated'] === NULL_DATE))
 		? datetime_convert('UTC','UTC','now - 7 days')
 		: datetime_convert('UTC','UTC',$contact['abook_updated'] . ' - 2 days')
 	);
@@ -135,7 +135,7 @@ function onepoll_run($argv, $argc){
 				foreach($j['messages'] as $message) {
 					$results = process_delivery(array('hash' => $contact['xchan_hash']), get_item_elements($message),
 						array(array('hash' => $importer['xchan_hash'])), false);
-					logger('onepoll: feed_update: process_delivery: ' . print_r($results,true));
+					logger('onepoll: feed_update: process_delivery: ' . print_r($results,true), LOGGER_DATA);
 					$total ++;
 				}
 				logger("onepoll: $total messages processed");

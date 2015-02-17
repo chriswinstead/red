@@ -1,37 +1,9 @@
 /* override some bootstrap settings */
 
-html {
-	font-size: 100%;
-}
-
-h1,
-.h1 {
-  font-size: 24px;
-}
-
-h2,
-.h2 {
-  font-size: 18px;
-}
-
-h3,
-.h3 {
-  font-size: 16px;
-}
-
-h4,
-.h4 {
-  font-size: 14px;
-}
-
-h5,
-.h5 {
-  font-size: 12px;
-}
-
-h6,
-.h6 {
-  font-size: 10px;
+/* this might be a bug in bootstrap */
+.input-group-addon,
+.input-group-btn {
+	width: unset;
 }
 
 /* nav overrides */

@@ -64,7 +64,7 @@ if(! $a->install) {
 		// should leave it for admins to define for themselves.
 			if (! $schema) {
 			      if(file_exists('view/theme/redbasic/schema/default.php')) {
-				    $schemefile = 'view/theme/redbasic/schema/' . 'default.php';
+				    $schemefile = 'view/theme/redbasic/schema/default.php';
 				    require_once ($schemefile);
 				    }
 			}
@@ -109,6 +109,10 @@ if(! $a->install) {
 		$navtabs_bgchover = "rgba(238,238,238,0.8)";
 	if (! $link_colour)
 		$link_colour = "#428BCA";
+	if (! $navaside_bghover)
+		$navaside_bghover = "#eee";
+	if (! $link_font_weight)
+		$link_font_weight = "normal";
 	if (! $banner_colour)
 		$banner_colour = "#fff";
 	if (! $search_background)
@@ -142,11 +146,11 @@ if(! $a->install) {
 	if (! $widget_brdrcolour)
 		$widget_brdrcolour = "rgba(238,238,238,0.8)";
 	if (! $blockquote_colour)
-		$blockquote_colour = "#000";
+		$blockquote_colour = "#4d4d4d";
 	if (! $blockquote_bgcolour)
-		$blockquote_bgcolour = "#f4f8f9";
+		$blockquote_bgcolour = "";
 	if (! $blockquote_bordercolour)
-		$blockquote_bordercolour = "#dae4ee";
+		$blockquote_bordercolour = "#ccc";
 	if (! $code_borderc)
 		$code_borderc = "#444";
 	if (! $code_bgcolour)
@@ -250,16 +254,24 @@ if(! $a->install) {
 		$reply_photo = '32px';
 	if(! $infomess_bgcolour)
 		$infomess_bgcolour = "#F0F0F0";
-       	if(! $advperm_bgcolour)
-                $advperm_bgcolour = "#F5F5F5";
-        if(! $advperm_bordercol)
-                $advperm_bordercol = "#E3E3E3";
-        if(! $advperm_gradientcol)
-                $advperm_gradientcol = "#E8E8E8";
-        if(! $cal_bgcolour)
-		 $cal_bgcolour = "#FCF8E3";
-        if(! $fancybox_bgcolour)
-                $fancybox_bgcolour = "#FFF";
+	if(! $alert_txtcolour)
+      $alert_txtcolour = "#31708F";	
+	if(! $alert_bgcolour)
+      $alert_bgcolour = "#D9EDF7";
+   if(! $alert_bordercol)
+      $alert_bordercol = "#BCE8F1";
+   if(! $alert_gradientcol)
+      $alert_gradientcol = "#B9DEF0";		
+	if(! $advperm_bgcolour)
+      $advperm_bgcolour = "#F5F5F5";
+   if(! $advperm_bordercol)
+      $advperm_bordercol = "#E3E3E3";
+   if(! $advperm_gradientcol)
+      $advperm_gradientcol = "#E8E8E8";
+   if(! $cal_bgcolour)
+		$cal_bgcolour = "#FCF8E3";
+   if(! $fancybox_bgcolour)
+      $fancybox_bgcolour = "#FFF";
 	if (!$comment_padding)
 		$comment_padding="0px";	
 	if (!$comment_border_left)
@@ -276,6 +288,8 @@ if(! $a->install) {
 		$dirpopup_txtcol="";
 	if (!$dirpopup_linkcol)
 		$dirpopup_linkcol="";
+	if (!$abook_changebg)
+		$abook_changebg="orange";
 
 	if($nav_min_opacity === false || $nav_min_opacity === '') {
 		$nav_float_min_opacity = 1.0;
@@ -310,7 +324,9 @@ $options = array (
 '$navtabs_linkchover' => $navtabs_linkchover,
 '$navtabs_bgchover' => $navtabs_bgchover,
 '$navtabs_decohover' => $navtabs_decohover,
+'$navaside_bghover' => $navaside_bghover,
 '$link_colour' => $link_colour,
+'$link_font_weight' => $link_font_weight,
 '$banner_colour' => $banner_colour,
 '$search_background' => $search_background,
 '$bgcolour' => $bgcolour,
@@ -382,6 +398,10 @@ $options = array (
 '$top_photo' => $top_photo,
 '$reply_photo' => $reply_photo,
 '$infomess_bgcolour' => $infomess_bgcolour,
+'$alert_txtcolour' => $alert_txtcolour,
+'$alert_bgcolour' => $alert_bgcolour,
+'$alert_bordercol' => $alert_bordercol,
+'$alert_gradientcol' => $alert_gradientcol,
 '$advperm_bgcolour' => $advperm_bgcolour,
 '$advperm_bordercol' => $advperm_bordercol,
 '$advperm_gradientcol' => $advperm_gradientcol,
@@ -400,6 +420,7 @@ $options = array (
 '$admintable_hoverbgcol' => $admintable_hoverbgcol,
 '$dirpopup_txtcol' => $dirpopup_txtcol,
 '$dirpopup_linkcol' => $dirpopup_linkcol,
+'$abook_changebg' => $abook_changebg,
 );
 
 echo str_replace(array_keys($options), array_values($options), $x);    
