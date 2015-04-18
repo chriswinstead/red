@@ -34,7 +34,7 @@
 		$navtabs_bgchover = "#fff";
 	if (! $navtabs_decohover)
 		$navtabs_decohover = "underline";
-if (! $navaside_bghover)
+	if (! $navaside_bghover)
 		$navaside_bghover = "#F5F5F5";
 	if (! $link_colour)
 		$link_colour = "#000";
@@ -50,6 +50,8 @@ if (! $navaside_bghover)
 		$search_background = "#F5F5F5";
 	if (! $bgcolour)
 		$bgcolour = "#fff";
+	if (! $genericcontent_bgcolour)
+		$genericcontent_bgcolour = 'rgba(255,255,255,0.8)';		
 	if (! $item_colour)
 		$item_colour = "rgba(255,255,255,0.8)";
 	if (! $comment_item_colour)
@@ -174,6 +176,8 @@ if (! $navaside_bghover)
       $advperm_gradientcol = "#fff";
    if(! $cal_bgcolour)
       $cal_bgcolour = "#fff";
+   if(! $chat_txtbgcol)
+      $chat_txtbgcol = "#fff";
    if(! $fancybox_bgcolour)
       $fancybox_bgcolour = "#fff";
 	if (!$admintable_hoverbgcol)

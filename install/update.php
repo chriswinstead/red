@@ -1,6 +1,6 @@
 <?php
 
-define( 'UPDATE_VERSION' , 1129 );
+define( 'UPDATE_VERSION' , 1137 );
 
 /**
  *
@@ -1457,3 +1457,114 @@ function update_r1128() {
 
 }
 
+function update_r1129() {
+	$r = q("update hubloc set hubloc_network = 'zot' where hubloc_network = ''");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1130() {
+	$myperms = PERMS_R_STREAM|PERMS_R_PROFILE|PERMS_R_PHOTOS|PERMS_R_ABOOK
+		|PERMS_W_STREAM|PERMS_W_WALL|PERMS_W_COMMENT|PERMS_W_MAIL|PERMS_W_CHAT
+		|PERMS_R_STORAGE|PERMS_R_PAGES|PERMS_W_LIKE;
+
+	$r = q("select abook_channel, abook_my_perms from abook where (abook_flags & %d) and abook_my_perms != 0",
+		intval(ABOOK_FLAG_SELF)
+	);
+	if($r) {
+		foreach($r as $rr) {
+			set_pconfig($rr['abook_channel'],'system','autoperms',$rr['abook_my_perms']);
+		}
+	}
+	$r = q("update abook set abook_my_perms = %d where (abook_flags & %d) and abook_my_perms = 0",
+		intval($myperms),
+		intval(ABOOK_FLAG_SELF)
+	);		
+
+	return UPDATE_SUCCESS;
+}
+
+function update_r1131() {
+	if(ACTIVE_DBTYPE == DBTYPE_POSTGRES) // make sure this gets skipped for anyone who hasn't run it yet, it will fail on pg
+		return UPDATE_SUCCESS;
+		
+	$r1 = q("ALTER TABLE `abook` ADD `abook_rating_text` TEXT NOT NULL DEFAULT '' AFTER `abook_rating` ");
+	$r2 = q("ALTER TABLE `xlink` ADD `xlink_rating_text` TEXT NOT NULL DEFAULT '' AFTER `xlink_rating` ");
+
+	if($r1 && $r2)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
+
+function update_r1132() {
+	if(ACTIVE_DBTYPE == DBTYPE_POSTGRES) { // correct previous failed update
+		$r1 = q("ALTER TABLE abook ADD abook_rating_text TEXT NOT NULL DEFAULT '' ");
+		$r2 = q("ALTER TABLE xlink ADD xlink_rating_text TEXT NOT NULL DEFAULT '' ");
+		if(!$r1 || !$r2)
+			return UPDATE_FAILED;
+	}
+	return UPDATE_SUCCESS;
+}
+
+function update_r1133() {
+	if(ACTIVE_DBTYPE == DBTYPE_POSTGRES) { 
+		$r1 = q("CREATE TABLE xperm (
+			xp_id serial NOT NULL,
+			xp_client varchar( 20 ) NOT NULL DEFAULT '',
+			xp_channel bigint NOT NULL DEFAULT '0',
+			xp_perm varchar( 64 ) NOT NULL DEFAULT '',
+			PRIMARY KEY (xp_id) )");
+		$r2 = 0;
+		foreach(array('xp_client', 'xp_channel', 'xp_perm') as $fld)
+			$r2 += ((q("create index $fld on xperm ($fld)") == false) ? 0 : 1);
+			
+		$r = (($r1 && $r2) ? true : false);
+	}
+	else {
+		$r = q("CREATE TABLE IF NOT EXISTS `xperm` (
+			`xp_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+			`xp_client` VARCHAR( 20 ) NOT NULL DEFAULT '',
+			`xp_channel` INT UNSIGNED NOT NULL DEFAULT '0',
+			`xp_perm` VARCHAR( 64 ) NOT NULL DEFAULT '',
+			KEY `xp_client` (`xp_client`),
+			KEY `xp_channel` (`xp_channel`),
+			KEY `xp_perm` (`xp_perm`)
+			) ENGINE=MyISAM  DEFAULT CHARSET=utf8 ");
+	}
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+
+}
+
+function update_r1134() {
+	if(ACTIVE_DBTYPE == DBTYPE_POSTGRES) { 
+		$r1 = q("ALTER TABLE xlink ADD xlink_static numeric(1) NOT NULL DEFAULT '0' ");
+		$r2 = q("create index xlink_static on xlink ( xlink_static ) ");
+		$r = $r1 && $r2;
+	}
+	else
+		$r = q("ALTER TABLE xlink ADD xlink_static TINYINT( 1 ) NOT NULL DEFAULT '0', ADD INDEX ( xlink_static ) ");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1135() {
+	$r = q("ALTER TABLE xlink ADD xlink_sig TEXT NOT NULL DEFAULT ''");
+	if($r)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}
+
+function update_r1136() {
+	$r1 = q("alter table item add item_unseen smallint not null default '0' ");
+	$r2 = q("create index item_unseen on item ( item_unseen ) ");
+	$r3 = q("update item set item_unseen = 1 where ( item_flags & 2 ) > 0 ");
+
+	if($r1 && $r2 && $r3)
+		return UPDATE_SUCCESS;
+	return UPDATE_FAILED;
+}

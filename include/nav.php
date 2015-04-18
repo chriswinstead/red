@@ -15,15 +15,7 @@ function nav(&$a) {
     $a->page['htmlhead'] .= <<< EOT
 
 <script>$(document).ready(function() {
-    var a;
-    a = $("#nav-search-text").autocomplete({
-        serviceUrl: '$base/acl',
-        minChars: 2,
-        width: 250,
-        id: 'nav-search-text-ac',
-    });
-    a.setOptions({ autoSubmit: true, params: { type: 'x' }});
-
+	$("#nav-search-text").search_autocomplete('$base/acl');
 });
 
 </script>
@@ -31,14 +23,14 @@ EOT;
 
 
 
-	if(local_user()) {
+	if(local_channel()) {
 		$channel = $a->get_channel();
 		$observer = $a->get_observer();
 		$prof = q("select id from profile where uid = %d and is_default = 1",
 			intval($channel['channel_id'])
 		);
 
-		$chans = q("select channel_name, channel_id from channel where channel_account_id = %d and not ( channel_pageflags & %d ) order by channel_name ",
+		$chans = q("select channel_name, channel_id from channel where channel_account_id = %d and not ( channel_pageflags & %d )>0 order by channel_name ",
 			intval(get_account_id()),
 			intval(PAGE_REMOVED)
 		);
@@ -47,7 +39,7 @@ EOT;
 
 
 	}
-	elseif(remote_user())
+	elseif(remote_channel())
 		$observer = $a->get_observer();
 	
 
@@ -84,66 +76,65 @@ EOT;
 
 	$nav['usermenu']=array();
 	$userinfo = null;
+	$nav['loginmenu']=array();
 
-	if(local_user()) {
+	if(local_channel()) {
 
 
-		if($chans && count($chans) > 1 && feature_enabled(local_user(),'nav_channel_select'))
+		if($chans && count($chans) > 1 && feature_enabled(local_channel(),'nav_channel_select'))
 			$nav['channels'] = $chans;
 
-		$nav['logout'] = Array('logout',t('Logout'), "", t('End this session'));
+		$nav['logout'] = Array('logout',t('Logout'), "", t('End this session'),'logout_nav_btn');
 		
 		// user menu
-		$nav['usermenu'][] = Array('channel/' . $channel['channel_address'], t('Home'), "", t('Your posts and conversations'));
-		$nav['usermenu'][] = Array('profile/' . $channel['channel_address'], t('View Profile'), "", t('Your profile page'));
-		if(feature_enabled(local_user(),'multi_profiles'))
-			$nav['usermenu'][]   = Array('profiles', t('Edit Profiles'),"", t('Manage/Edit profiles'));
+		$nav['usermenu'][] = Array('channel/' . $channel['channel_address'], t('Home'), "", t('Your posts and conversations'),'channel_nav_btn');
+		$nav['usermenu'][] = Array('profile/' . $channel['channel_address'], t('View Profile'), "", t('Your profile page'),'profile_nav_btn');
+		if(feature_enabled(local_channel(),'multi_profiles'))
+			$nav['usermenu'][]   = Array('profiles', t('Edit Profiles'),"", t('Manage/Edit profiles'),'profiles_nav_btn');
 		else
-			$nav['usermenu'][]   = Array('profiles/' . $prof[0]['id'], t('Edit Profile'),"", t('Edit your profile'));
+			$nav['usermenu'][]   = Array('profiles/' . $prof[0]['id'], t('Edit Profile'),"", t('Edit your profile'),'profiles_nav_btn');
 
-		$nav['usermenu'][] = Array('photos/' . $channel['channel_address'], t('Photos'), "", t('Your photos'));
-		$nav['usermenu'][] = Array('cloud/' . $channel['channel_address'],t('Files'),"",t('Your files'));
+		$nav['usermenu'][] = Array('photos/' . $channel['channel_address'], t('Photos'), "", t('Your photos'),'photos_nav_btn');
+		$nav['usermenu'][] = Array('cloud/' . $channel['channel_address'],t('Files'),"",t('Your files'),'cloud_nav_btn');
 
 		require_once('include/chat.php');
-		$has_chats = chatroom_list_count(local_user());
+		$has_chats = chatroom_list_count(local_channel());
 		if($has_chats) {
-			$nav['usermenu'][] = Array('chat/' . $channel['channel_address'],t('Chat'),"",t('Your chatrooms'));
+			$nav['usermenu'][] = Array('chat/' . $channel['channel_address'],t('Chat'),"",t('Your chatrooms'),'chat_nav_btn');
 		}
 
 		require_once('include/menu.php');
-		$has_bookmarks = menu_list_count(local_user(),'',MENU_BOOKMARK) + menu_list_count(local_user(),'',MENU_SYSTEM|MENU_BOOKMARK);
+		$has_bookmarks = menu_list_count(local_channel(),'',MENU_BOOKMARK) + menu_list_count(local_channel(),'',MENU_SYSTEM|MENU_BOOKMARK);
 		if($has_bookmarks) {
-			$nav['usermenu'][] = Array('bookmarks', t('Bookmarks'), "", t('Your bookmarks'));
+			$nav['usermenu'][] = Array('bookmarks', t('Bookmarks'), "", t('Your bookmarks'),'bookmarks_nav_btn');
 		}
 
 		if(feature_enabled($channel['channel_id'],'webpages'))
-			$nav['usermenu'][] = Array('webpages/' . $channel['channel_address'],t('Webpages'),"",t('Your webpages'));
+			$nav['usermenu'][] = Array('webpages/' . $channel['channel_address'],t('Webpages'),"",t('Your webpages'),'webpages_nav_btn');
 	}
 	else {
-		if(! get_account_id()) 
-			$nav['login'] = Array('login',t('Login'), ($a->module == 'login'?'selected':''), t('Sign in'));
+		if(! get_account_id())  {
+			$nav['loginmenu'][] = Array('login',t('Login'),'',t('Sign in'),'login_nav_btn');
+		}
 		else
-			$nav['alogout'] = Array('logout',t('Logout'), "", t('End this session'));
+			$nav['alogout'] = Array('logout',t('Logout'), "", t('End this session'),'logout_nav_btn');
 
 
 	}
 
 	if($observer) {
 			$userinfo = array(
-			'icon' => $observer['xchan_photo_m'],
+			'icon' => $observer['xchan_photo_s'],
 			'name' => $observer['xchan_addr'],
 		);
 	}
 
 	if($observer) {
-		$nav['locked'] = true;
 		$nav['lock'] = array('logout','','lock', 
 			sprintf( t('%s - click to logout'), $observer['xchan_addr']));
 	}
 	else {
-		$nav['locked'] = false;
-		$nav['lock'] = array('rmagic','','unlock', 
-			t('Click to authenticate to your home hub'));
+		$nav['loginmenu'][] = Array('rmagic',t('Remote authentication'),'',t('Click to authenticate to your home hub'),'rmagic_nav_btn');
 	}
 
 	/**
@@ -156,25 +147,25 @@ EOT;
 		$homelink = (($observer) ? $observer['xchan_url'] : '');
 	}
 
-	if(($a->module != 'home') && (! (local_user()))) 
-		$nav['home'] = array($homelink, t('Home'), "", t('Home Page'));
+	if(($a->module != 'home') && (! (local_channel()))) 
+		$nav['home'] = array($homelink, t('Home'), "", t('Home Page'),'home_nav_btn');
 
 
-	if(($a->config['system']['register_policy'] == REGISTER_OPEN) && (! local_user()) && (! remote_user()))
-		$nav['register'] = array('register',t('Register'), "", t('Create an account'));
+	if(($a->config['system']['register_policy'] == REGISTER_OPEN) && (! local_channel()) && (! remote_channel()))
+		$nav['register'] = array('register',t('Register'), "", t('Create an account'),'register_nav_btn');
 
 	$help_url = z_root() . '/help?f=&cmd=' . $a->cmd;
 
 	if(! get_config('system','hide_help'))
-		$nav['help'] = array($help_url, t('Help'), "", t('Help and documentation'));
+		$nav['help'] = array($help_url, t('Help'), "", t('Help and documentation'),'help_nav_btn');
 
 
-	$nav['apps'] = array('apps', t('Apps'), "", t('Applications, utilities, links, games'));
+	$nav['apps'] = array('apps', t('Apps'), "", t('Applications, utilities, links, games'),'apps_nav_btn');
 
 	$nav['search'] = array('search', t('Search'), "", t('Search site content'));
 
 
-	$nav['directory'] = array('directory', t('Directory'), "", t('Channel Locator')); 
+	$nav['directory'] = array('directory', t('Directory'), "", t('Channel Directory'),'directory_nav_btn'); 
 
 
 	/**
@@ -183,26 +174,26 @@ EOT;
 	 *
 	 */
 
-	if(local_user()) {
+	if(local_channel()) {
 
-		$network_options = get_pconfig(local_user(),'system','network_page_default');
+		$network_options = get_pconfig(local_channel(),'system','network_page_default');
 	
 		$nav['network'] = array('network' . (($network_options) ? '?f=&' . $network_options : ''), 
-			t('Matrix'), "", t('Your matrix'));
+			t('Matrix'), "", t('Your matrix'),'network_nav_btn');
 		$nav['network']['mark'] = array('', t('Mark all matrix notifications seen'), '','');
 
-		$nav['home'] = array('channel/' . $channel['channel_address'], t('Channel Home'), "", t('Channel home'));
+		$nav['home'] = array('channel/' . $channel['channel_address'], t('Channel Home'), "", t('Channel home'),'home_nav_btn');
 		$nav['home']['mark'] = array('', t('Mark all channel notifications seen'), '','');
 
 
-		$nav['intros'] = array('connections/ifpending',	t('Connections'), "", t('Connections'));
+		$nav['intros'] = array('connections/ifpending',	t('Connections'), "", t('Connections'),'connections_nav_btn');
 
 
-		$nav['notifications'] = array('notifications/system',	t('Notices'), "", t('Notifications'));
+		$nav['notifications'] = array('notifications/system',	t('Notices'), "", t('Notifications'),'notifications_nav_btn');
 		$nav['notifications']['all']=array('notifications/system', t('See all notifications'), "", "");
 		$nav['notifications']['mark'] = array('', t('Mark all system notifications seen'), '','');
 
-		$nav['messages'] = array('message', t('Mail'), "", t('Private mail'));
+		$nav['messages'] = array('message', t('Mail'), "", t('Private mail'),'mail_nav_btn');
 		$nav['messages']['all']=array('message', t('See all private messages'), "", "");
 		$nav['messages']['mark'] = array('', t('Mark all private messages seen'), '','');
 		$nav['messages']['inbox'] = array('message', t('Inbox'), "", t('Inbox'));
@@ -210,13 +201,13 @@ EOT;
 		$nav['messages']['new'] = array('mail/new', t('New Message'), "", t('New Message'));
 
 
-		$nav['all_events'] = array('events', t('Events'), "", t('Event Calendar'));
+		$nav['all_events'] = array('events', t('Events'), "", t('Event Calendar'),'events_nav_btn');
 		$nav['all_events']['all']=array('events', t('See all events'), "", "");
 		$nav['all_events']['mark'] = array('', t('Mark all events seen'), '','');
 		
-		$nav['manage'] = array('manage', t('Channel Manager'), "", t('Manage Your Channels'));
+		$nav['manage'] = array('manage', t('Channel Manager'), "", t('Manage Your Channels'),'manage_nav_btn');
 
-		$nav['settings'] = array('settings', t('Settings'),"", t('Account/Channel Settings'));
+		$nav['settings'] = array('settings', t('Settings'),"", t('Account/Channel Settings'),'settings_nav_btn');
 
 	}
 
@@ -224,7 +215,7 @@ EOT;
 	 * Admin page
 	 */
 	 if (is_site_admin()){
-		 $nav['admin'] = array('admin/', t('Admin'), "", t('Site Setup and Configuration'));
+		 $nav['admin'] = array('admin/', t('Admin'), "", t('Site Setup and Configuration'),'admin_nav_btn');
 	 }
 
 
@@ -257,9 +248,10 @@ $powered_by = '';
 		'$banner' =>  $banner,
 		'$emptynotifications' => t('Loading...'),
 		'$userinfo' => $x['usermenu'],
-		'$localuser' => local_user(),
+		'$localuser' => local_channel(),
 		'$sel' => 	$a->nav_sel,
 		'$powered_by' => $powered_by,
+		'$help' => t('@name, #tag, content'),
 		'$pleasewait' => t('Please wait...')
 	));
 

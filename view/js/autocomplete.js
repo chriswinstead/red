@@ -1,200 +1,169 @@
 /**
- * Friendica people autocomplete
+ * Red people autocomplete
  *
- * require jQuery, jquery.textareas
+ * require jQuery, jquery.textcomplete
  */
- 
-		
-		
-function ACPopup(elm,backend_url){
-	this.idsel=-1;
-	this.element = elm;
-	this.searchText="";
-	this.ready=true;
-	this.kp_timer = false;
-	this.url = backend_url;
-
-	var w = 530;
-	var h = 130;
-
-
-	if(typeof elm.editorId == "undefined") {	
-		style = $(elm).offset();
-		w = $(elm).width();
-		h = $(elm).height();
+function contact_search(term, callback, backend_url, type, extra_channels, spinelement) {
+	if(spinelement){
+		$(spinelement).spin('tiny');
 	}
-	else {
-		var container = elm.getContainer();
-		if(typeof container != "undefined") {
-			style = $(container).offset();
-			w = $(container).width();
-	    	h = $(container).height();
+	// Check if there is a cached result that contains the same information we would get with a full server-side search
+	var bt = backend_url+type;
+	if(!(bt in contact_search.cache)) contact_search.cache[bt] = {};
+
+	var lterm = term.toLowerCase(); // Ignore case
+	for(t in contact_search.cache[bt]) {
+		if(lterm.indexOf(t) >= 0) { // A more broad search has been performed already, so use those results
+			$(spinelement).spin(false);
+			// Filter old results locally
+			var matching = contact_search.cache[bt][t].filter(function (x) { return (x.name.toLowerCase().indexOf(lterm) >= 0 || (typeof x.nick !== 'undefined'  && x.nick.toLowerCase().indexOf(lterm) >= 0)); }); // Need to check that nick exists because groups don't have one
+			matching.unshift({taggable:false, text: term, replace: term});
+			setTimeout(function() { callback(matching)} , 1); // Use "pseudo-thread" to avoid some problems
+			return;
 		}
 	}
 
-	if(! w)
-		w = 530;
-
-	if(! h)
-		h = 130;
-
-	style.top=style.top+h;
-	style.width = w;
-	style.position = 'absolute';
-	/*	style['max-height'] = '150px';
-		style.border = '1px solid red';
-		style.background = '#cccccc';
-	
-		style.overflow = 'auto';
-		style['z-index'] = '100000';
-	*/
-	style.display = 'none';
-	
-	this.cont = $("<div class='acpopup'></div>");
-	this.cont.css(style);
-	
-	$("body").append(this.cont);
-}
-ACPopup.prototype.close = function(){
-	$(this.cont).remove();
-	this.ready=false;
-}
-ACPopup.prototype.search = function(text){
-	var that = this;
-	this.searchText=text;
-	if (this.kp_timer) clearTimeout(this.kp_timer);
-	this.kp_timer = setTimeout( function(){that._search();}, 500);
-}
-ACPopup.prototype._search = function(){	
-	console.log("_search");
-	var that = this;
 	var postdata = {
 		start:0,
 		count:100,
-		search:this.searchText,
-		type:'c',
+		search:term,
+		type:type,
 	}
+
+	if(typeof extra_channels !== 'undefined' && extra_channels)
+		postdata['extra_channels[]'] = extra_channels;
 	
 	$.ajax({
 		type:'POST',
-		url: this.url,
+		url: backend_url,
 		data: postdata,
 		dataType: 'json',
 		success:function(data){
-			that.cont.html("");
-			if (data.tot>0){
-				that.cont.show();
-				$(data.items).each(function(){
-					html = "<img src='{0}' height='16px' width='16px'>{1} ({2})".format(this.photo, this.name, ((this.label) ? this.nick + ' ' + this.label : this.nick) )
-					that.add(this.taggable, html, this.nick.replace(' ','') + '+' + this.id + ' - ' + this.link);
-				});			
-			} else {
-				that.cont.hide();
+			// Cache results if we got them all (more information would not improve results)
+			// data.count represents the maximum number of items
+			if(data.items.length -1 < data.count) {
+				contact_search.cache[bt][lterm] = data.items;
 			}
-		}
-	});
-	
+			var items = data.items.slice(0);
+			items.unshift({taggable:false, text: term, replace: term});
+			callback(items);
+			$(spinelement).spin(false);
+		},
+	}).fail(function () {callback([]); }); // Callback must be invoked even if something went wrong.
 }
-ACPopup.prototype.add = function(taggable, label, value){
-	var that=this;
-	var elm = $("<div class='acpopupitem " + taggable +"' title='"+value+"'>"+label+"</div>");
-	elm.click(function(e){
-		t = $(this).attr('title').replace(new RegExp(' \- .*'),'');
-		if(typeof(that.element.container) === "undefined") {
-			el=$(that.element);
-			sel = el.getSelection();
-			sel.start = sel.start- that.searchText.length;
-			el.setSelection(sel.start,sel.end).replaceSelectedText(t+' ').collapseSelection(false);
-			that.close();
-		}
-		else {
-			txt = tinyMCE.activeEditor.getContent();
-			//			alert(that.searchText + ':' + t);
-			newtxt = txt.replace('@' + that.searchText, '@' + t + ' ');
-			tinyMCE.activeEditor.setContent(newtxt);
-			tinyMCE.activeEditor.focus();
-			that.close();
-		}
-	});
-	$(this.cont).append(elm);
-}
-ACPopup.prototype.onkey = function(event){
-	if (event.keyCode == '13') {
-		if(this.idsel>-1) {
-			this.cont.children()[this.idsel].click();
-			event.preventDefault();
-		}
-		else
-			this.close();
+contact_search.cache = {};
+
+
+function contact_format(item) {
+	// Show contact information if not explicitly told to show something else
+	if(typeof item.text === 'undefined') {
+		var desc = ((item.label) ? item.nick + ' ' + item.label : item.nick)
+		if(typeof desc === 'undefined') desc = '';
+		if(desc) desc = ' ('+desc+')';
+		return "<div class='{0}' title='{4}'><img src='{1}'><span class='contactname'>{2}</span><span class='dropdown-sub-text'>{3}</span><div class='clear'></div></div>".format(item.taggable, item.photo, item.name, desc, item.link)
 	}
-	if (event.keyCode == '38') { //cursor up
-		cmax = this.cont.children().size()-1;
-		this.idsel--;
-		if (this.idsel<0) this.idsel=cmax;
-		event.preventDefault();
-	}
-	if (event.keyCode == '40' || event.keyCode == '9') { //cursor down
-		cmax = this.cont.children().size()-1;
-		this.idsel++;
-		if (this.idsel>cmax) this.idsel=0;
-		event.preventDefault();
-	}
-	
-	if (event.keyCode == '38' || event.keyCode == '40' || event.keyCode == '9') {
-		this.cont.children().removeClass('selected');
-		$(this.cont.children()[this.idsel]).addClass('selected');
-	}
-	
-	if (event.keyCode == '27') { //ESC
-		this.close();
-	}
+	else
+		return "<div>"+item.text+"</div>"
 }
 
-function ContactAutocomplete(element,backend_url){
-	this.pattern=/@(\!*)([^ \n]+)$/;
-	this.popup=null;
-	var that = this;
-	
-	$(element).unbind('keydown');
-	$(element).unbind('keyup');
-	
-	$(element).keydown(function(event){
-		if (that.popup!==null) that.popup.onkey(event);
-	});
-	
-	$(element).keyup(function(event){
-		cpos = $(this).getSelection();
-		if (cpos.start==cpos.end){
-			match = $(this).val().substring(0,cpos.start).match(that.pattern);
-			if (match!==null){
-				if (that.popup===null){
-					that.popup = new ACPopup(this, backend_url);
-				}
-				if (that.popup.ready && match[2]!==that.popup.searchText) that.popup.search(match[2]);
-				if (!that.popup.ready) that.popup=null;
-				
-			} else {
-				if (that.popup!==null) {that.popup.close(); that.popup=null;}
-			}
-			
-			
-		}
-	});		
-	
+function editor_replace(item) {
+	if(typeof item.replace !== 'undefined') {
+		return '$1$2'+item.replace;
+	}
+
+	// $2 ensures that prefix (@,@!) is preserved
+	var id = item.id;
+	 // 16 chars of hash should be enough. Full hash could be used if it can be done in a visually appealing way.
+	// 16 chars is also the minimum length in the backend (otherwise it's interpreted as a local id).
+	if(id.length > 16) 
+		id = item.id.substring(0,16);
+	return '$1$2'+item.nick.replace(' ','') + '+' + id + ' ';
 }
 
+function basic_replace(item) {
+	if(typeof item.replace !== 'undefined')
+		return '$1'+item.replace;
+
+	return '$1'+item.name+' ';
+}
+
+function submit_form(e) {
+	$(e).parents('form').submit();
+}
 
 /**
- * jQuery plugin 'contact_autocomplete'
+ * jQuery plugin 'editor_autocomplete'
  */
 (function( $ ){
-  $.fn.contact_autocomplete = function(backend_url) {
-    this.each(function(){
-		new ContactAutocomplete(this, backend_url);
-	});
+	$.fn.editor_autocomplete = function(backend_url, extra_channels) {
+	if (typeof extra_channels === 'undefined') extra_channels = false;
+
+	// Autocomplete contacts
+	contacts = {
+		match: /(^|\s)(@\!*)([^ \n]+)$/,
+		index: 3,
+		search: function(term, callback) { contact_search(term, callback, backend_url, 'c', extra_channels, spinelement=false); },
+		replace: editor_replace,
+		template: contact_format,
+	}
+
+	smilies = {
+		match: /(^|\s)(:[a-z]{2,})$/,
+		index: 2,
+		search: function(term, callback) { $.getJSON('/smilies/json').done(function(data) { callback($.map(data, function(entry) { return entry['text'].indexOf(term) === 0 ? entry : null })) }) },
+		template: function(item) { return item['icon'] + item['text'] },
+		replace: function(item) { return "$1"+item['text'] + ' '; },
+	}
+	this.attr('autocomplete','off');
+	this.textcomplete([contacts,smilies],{className:'acpopup',zIndex:1020});
   };
 })( jQuery );
 
+/**
+ * jQuery plugin 'search_autocomplete'
+ */
+(function( $ ){
+	$.fn.search_autocomplete = function(backend_url) {
 
+	// Autocomplete contacts
+	contacts = {
+		match: /(^@)([^\n]{2,})$/,
+		index: 2,
+		search: function(term, callback) { contact_search(term, callback, backend_url, 'x', [], spinelement='#nav-search-spinner'); },
+		replace: basic_replace,
+		template: contact_format,
+	}
+	this.attr('autocomplete','off');
+	var a = this.textcomplete([contacts],{className:'acpopup',maxCount:100,zIndex: 1020,appendTo:'nav'});
 
-		
+	a.on('textComplete:select', function(e,value,strategy) { submit_form(this); });
+	
+  };
+})( jQuery );
+
+(function( $ ){
+	$.fn.contact_autocomplete = function(backend_url, typ, autosubmit, onselect) {
+
+	if(typeof typ === 'undefined') typ = '';
+	if(typeof autosubmit === 'undefined') autosubmit = false;
+
+	// Autocomplete contacts
+	contacts = {
+		match: /(^)([^\n]+)$/,
+		index: 2,
+		search: function(term, callback) { contact_search(term, callback, backend_url, typ,[], spinelement=false); },
+		replace: basic_replace,
+		template: contact_format,
+	}
+
+	this.attr('autocomplete','off');
+	var a = this.textcomplete([contacts],{className:'acpopup',zIndex:1020});
+
+	if(autosubmit)
+		a.on('textComplete:select', function(e,value,strategy) { submit_form(this); });
+
+	if(typeof onselect !== 'undefined')
+		a.on('textComplete:select',function(e,value,strategy) { onselect(value); });
+  };
+})( jQuery );
+

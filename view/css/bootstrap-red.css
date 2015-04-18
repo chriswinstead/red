@@ -1,11 +1,5 @@
 /* override some bootstrap settings */
 
-/* this might be a bug in bootstrap */
-.input-group-addon,
-.input-group-btn {
-	width: unset;
-}
-
 /* nav overrides */
 
 nav .badge {
@@ -17,32 +11,25 @@ nav .badge {
 	cursor: pointer;
 }
 
+nav i {
+	font-size: 14px;
+}
+
+nav ul li {
+	max-height: 49px;
+}
+
+nav img {
+	height: 48px;
+	width: 48px;
+	margin-top: 1px;
+}
+
 nav .dropdown-menu {
-	top: 50px;
 	max-height: 450px;
 	max-width: 300px;
 	overflow-y: auto;
 	margin-top: 0px;
-}
-
-nav .dropdown-menu .contactname {
-	padding-top: 2px;
-	font-weight: bold;
-	display: block;
-}
-
-nav .dropdown-menu img {
-	float: left;
-	margin-right: 5px;
-	width: 32px;
-	height: 32px;
-}
-
-nav .dropdown-menu li a {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	line-height: 1em;
-	padding: 5px 10px;
 }
 
 nav .navbar-collapse .navbar-left {
@@ -53,12 +40,24 @@ nav .navbar-collapse .navbar-right {
 	float: right;
 }
 
+nav .navbar-toggle {
+	margin-bottom: 7px;
+}
+
 /* nav overrides end */
 
 .dropdown-menu img {
+	float: left;
 	width: 32px;
 	height: 32px;
 	margin-right: 5px;
+}
+
+.dropdown-menu li a {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1em;
+	padding: 5px 10px;
 }
 
 .nav-tabs.nav-justified > li {
@@ -68,3 +67,7 @@ nav .navbar-collapse .navbar-right {
 code {
 	white-space: normal;
 }
+
+/* Bootstrap assumes that checkboxes are on the left of labels, while it's usually the opposite in Red */
+.field.checkbox input[type="checkbox"] { margin-left: 0px; }
+.field.checkbox label { padding-left: 0px; font-weight: 700}

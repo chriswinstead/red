@@ -45,6 +45,56 @@ function format_event_html($ev) {
 	return $o;
 }
 
+
+
+function ical_wrapper($ev) {
+
+	if(! ((is_array($ev)) && count($ev)))
+		return '';
+
+	$o .= "BEGIN:VCALENDAR";
+	$o .= "\nVERSION:2.0";
+	$o .= "\nMETHOD:PUBLISH";
+	$o .= "\nPRODID:-//" . get_config('system','sitename') . "//" . RED_PLATFORM . "//" . strtoupper(get_app()->language). "\n";
+	if(array_key_exists('start',$ev))
+		$o .= format_event_ical($ev);
+	else {
+		foreach($ev as $e) {
+			$o .= format_event_ical($e);
+		}
+	}
+	$o .= "\nEND:VCALENDAR\n";
+
+	return $o;
+}
+
+function format_event_ical($ev) {
+
+	$o = '';
+
+	$o .= "\nBEGIN:VEVENT";
+	if($ev['start']) 
+		$o .= "\nDTSTART:" . datetime_convert('UTC','UTC', $ev['start'],'Ymd\\THis' . (($ev['adjust']) ? '\\Z' : ''));
+	if($ev['finish'] && ! $ev['nofinish']) 
+		$o .= "\nDTEND:" . datetime_convert('UTC','UTC', $ev['finish'],'Ymd\\THis' . (($ev['adjust']) ? '\\Z' : ''));
+	if($ev['summary']) 
+		$o .= "\nSUMMARY:" . format_ical_text($ev['summary']);
+	if($ev['location'])
+		$o .= "\nLOCATION:" . format_ical_text($ev['location']);
+	if($ev['description']) 
+		$o .= "\nDESCRIPTION:" . format_ical_text($ev['description']);
+	$o .= "\nEND:VEVENT\n";
+	return $o;
+}
+
+function format_ical_text($s) {
+
+	require_once('include/bbcode.php');
+	require_once('include/html2plain.php');
+	return(wordwrap(html2plain(bbcode($s)),72,"\n ",true));
+}
+
+
 function format_event_bbcode($ev) {
 
 	$o = '';
@@ -183,7 +233,7 @@ function event_store_event($arr) {
 			`allow_gid` = '%s',
 			`deny_cid` = '%s',
 			`deny_gid` = '%s'
-			WHERE `id` = %d AND `uid` = %d LIMIT 1",
+			WHERE `id` = %d AND `uid` = %d",
 
 			dbesc($arr['edited']),
 			dbesc($arr['start']),
@@ -284,7 +334,7 @@ function event_addtocal($item_id, $uid) {
 
 		$event = event_store_event($ev);
 		if($event) {
-			$r = q("update item set resource_id = '%s', resource_type = 'event' where id = %d and uid = %d limit 1",
+			$r = q("update item set resource_id = '%s', resource_type = 'event' where id = %d and uid = %d",
 				dbesc($event['event_hash']),
 				intval($item['id']),
 				intval($channel['channel_id'])
@@ -359,7 +409,7 @@ function event_store_item($arr,$event) {
 
 		$private = (($arr['allow_cid'] || $arr['allow_gid'] || $arr['deny_cid'] || $arr['deny_gid']) ? 1 : 0);
 
-		q("UPDATE item SET title = '%s', body = '%s', object = '%s', allow_cid = '%s', allow_gid = '%s', deny_cid = '%s', deny_gid = '%s', edited = '%s', item_flags = %d, item_private = %d  WHERE id = %d AND uid = %d LIMIT 1",
+		q("UPDATE item SET title = '%s', body = '%s', object = '%s', allow_cid = '%s', allow_gid = '%s', deny_cid = '%s', deny_gid = '%s', edited = '%s', item_flags = %d, item_private = %d  WHERE id = %d AND uid = %d",
 			dbesc($arr['summary']),
 			dbesc($prefix . format_event_bbcode($arr)),
 			dbesc($object),
@@ -400,8 +450,7 @@ function event_store_item($arr,$event) {
 	}
 	else {
 
-		$z = q("select * from channel where channel_hash = '%s' and channel_id = %d limit 1",
-			dbesc($event['event_xchan']),
+		$z = q("select * from channel where channel_id = %d limit 1",
 			intval($arr['uid'])
 		);
 
@@ -413,7 +462,7 @@ function event_store_item($arr,$event) {
 			$item_arr['id'] = $item['id'];
 		}
 		else {
-			$wall = (($z) ? true : false);
+			$wall = (($z[0]['channel_hash'] == $event['event_xchan']) ? true : false);
 
 			$item_flags = ITEM_THREAD_TOP;
 			if($wall) {
@@ -455,7 +504,14 @@ function event_store_item($arr,$event) {
 
 		$item_arr['body']          = $prefix . format_event_bbcode($arr);
 
-		$item_arr['plink'] = z_root() . '/channel/' . $z[0]['channel_address'] . '/?f=&mid=' . $item_arr['mid'];
+		// if it's local send the permalink to the channel page.
+		// otherwise we'll fallback to /display/$message_id
+
+		if($wall)
+			$item_arr['plink'] = z_root() . '/channel/' . $z[0]['channel_address'] . '/?f=&mid=' . $item_arr['mid'];
+		else
+			$item_arr['plink'] = z_root() . '/display/' . $item_arr['mid'];
+
 
 		$x = q("select * from xchan where xchan_hash = '%s' limit 1",
 				dbesc($arr['event_xchan'])

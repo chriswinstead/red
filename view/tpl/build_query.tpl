@@ -22,9 +22,11 @@
 	var bParam_order = "{{$order}}";
 	var bParam_file = "{{$file}}";
 	var bParam_cats = "{{$cats}}";
+	var bParam_tags = "{{$tags}}";
 	var bParam_dend = "{{$dend}}";
 	var bParam_dbegin = "{{$dbegin}}";
 	var bParam_mid = "{{$mid}}";
+	var bParam_verb = "{{$verb}}";
 
 	function buildCmd() {
 		var udargs = ((page_load) ? "/load" : "");
@@ -46,9 +48,11 @@
 		if(bParam_order != "") bCmd = bCmd + "&order=" + bParam_order;
 		if(bParam_file != "") bCmd = bCmd + "&file=" + bParam_file;
 		if(bParam_cats != "") bCmd = bCmd + "&cat=" + bParam_cats;
+		if(bParam_tags != "") bCmd = bCmd + "&tag=" + bParam_tags;
 		if(bParam_dend != "") bCmd = bCmd + "&dend=" + bParam_dend;
 		if(bParam_dbegin != "") bCmd = bCmd + "&dbegin=" + bParam_dbegin;
 		if(bParam_mid != "") bCmd = bCmd + "&mid=" + bParam_mid;
+		if(bParam_verb != "") bCmd = bCmd + "&verb=" + bParam_verb;
 		if(bParam_page != 1) bCmd = bCmd + "&page=" + bParam_page;
 		return(bCmd);
 	}

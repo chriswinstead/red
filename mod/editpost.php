@@ -9,7 +9,7 @@ function editpost_content(&$a) {
 
 	$o = '';
 
-	if(! local_user()) {
+	if(! local_channel()) {
 		notice( t('Permission denied.') . EOL);
 		return;
 	}
@@ -23,7 +23,7 @@ function editpost_content(&$a) {
 
 	$itm = q("SELECT * FROM `item` WHERE `id` = %d AND `uid` = %d and author_xchan = '%s' LIMIT 1",
 		intval($post_id),
-		intval(local_user()),
+		intval(local_channel()),
 		dbesc(get_observer_hash())
 	);
 
@@ -33,7 +33,7 @@ function editpost_content(&$a) {
 	}
 
 	$plaintext = true;
-//	if(feature_enabled(local_user(),'richtext'))
+//	if(feature_enabled(local_channel(),'richtext'))
 //		$plaintext = false;
 
 	$channel = $a->get_channel();
@@ -74,10 +74,11 @@ function editpost_content(&$a) {
 	$channel = $a->get_channel();
 
 	//$tpl = replace_macros($tpl,array('$jotplugins' => $jotplugins));	
-	
+
+	$voting = feature_enabled(local_channel(),'consensus_tools');	
 
 	$category = '';
-	$catsenabled = ((feature_enabled(local_user(),'categories')) ? 'categories' : '');
+	$catsenabled = ((feature_enabled(local_channel(),'categories')) ? 'categories' : '');
 
 	if ($catsenabled){
 	        $itm = fetch_post_tags($itm);
@@ -118,6 +119,9 @@ function editpost_content(&$a) {
 		'$audio' => t('Insert Vorbis [.ogg] audio'),
 		'$setloc' => t('Set your location'),
 		'$noloc' => t('Clear browser location'),
+		'$voting' => t('Toggle voting'),
+		'$feature_voting' => $voting,
+		'$consensus' => (($itm[0]['item_flags'] & ITEM_CONSENSUS) ? 1 : 0),
 		'$wait' => t('Please wait'),
 		'$permset' => t('Permission settings'),
 		'$ptyp' => $itm[0]['type'],
@@ -129,15 +133,15 @@ function editpost_content(&$a) {
 		'$public' => t('Public post'),
 		'$jotnets' => $jotnets,
 		'$title' => htmlspecialchars($itm[0]['title'],ENT_COMPAT,'UTF-8'),
-		'$placeholdertitle' => t('Set title'),
+		'$placeholdertitle' => t('Title (optional)'),
 		'$category' => $category,
-		'$placeholdercategory' => t('Categories (comma-separated list)'),
+		'$placeholdercategory' => t('Categories (optional, comma-separated list)'),
 		'$emtitle' => t('Example: bob@example.com, mary@example.com'),
 		'$lockstate' => $lockstate,
 		'$acl' => '', 
 		'$bang' => '',
-		'$profile_uid' => local_user(),
-		'$preview' => ((feature_enabled(local_user(),'preview')) ? t('Preview') : ''),
+		'$profile_uid' => local_channel(),
+		'$preview' => true, // ((feature_enabled(local_channel(),'preview')) ? t('Preview') : ''),
 		'$jotplugins' => $jotplugins,
 		'$sourceapp' => t($a->sourcename),
 		'$catsenabled' => $catsenabled,

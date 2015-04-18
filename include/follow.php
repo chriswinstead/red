@@ -13,6 +13,8 @@ require_once('include/zot.php');
 
 function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) {
 
+
+
 	$result = array('success' => false,'message' => '');
 
 	$a = get_app();
@@ -35,7 +37,7 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 
 	// check service class limits
 
-	$r = q("select count(*) as total from abook where abook_channel = %d and not (abook_flags & %d) ",
+	$r = q("select count(*) as total from abook where abook_channel = %d and not (abook_flags & %d)>0 ",
 		intval($uid),
 		intval(ABOOK_FLAG_SELF)
 	);
@@ -62,16 +64,17 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 		$j = json_decode($ret['body'],true);
 	}
 
+	$my_perms = get_channel_default_perms($uid);
+
+	$role = get_pconfig($uid,'system','permissions_role');
+	if($role) {
+		$x = get_role_perms($role);
+		if($x['perms_follow'])
+			$my_perms = $x['perms_follow'];
+	}
+
+
 	if($is_red && $j) {
-
-		$my_perms = PERMS_W_STREAM|PERMS_W_MAIL;
-
-		$role = get_pconfig($uid,'system','permissions_role');
-		if($role) {
-			$x = get_role_perms($role);
-			if($x['perms_follow'])
-				$my_perms = $x['perms_follow'];
-		}
 
 		logger('follow: ' . $url . ' ' . print_r($j,true), LOGGER_DEBUG);
 
@@ -102,7 +105,6 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 			return $x;
 
 		$xchan_hash = $x['hash'];
-
 
 		$their_perms = 0;
 
@@ -135,7 +137,6 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 			}
 		}
 
-		$my_perms = 0;
 		$their_perms = 0;
 		$xchan_hash = '';
 
@@ -162,13 +163,6 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 		if($r) {
 			$xchan_hash = $r[0]['xchan_hash'];
 			$their_perms = 0;
-			$my_perms = PERMS_W_STREAM|PERMS_W_MAIL;
-			$role = get_pconfig($uid,'system','permissions_role');
-			if($role) {
-				$x = get_role_perms($role);
-				if($x['perms_follow'])
-					$my_perms = $x['perms_follow'];
-			}
 		}
 	}
 
@@ -178,7 +172,7 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 		return $result;
 	}
 
-	if((local_user()) && $uid == local_user()) {
+	if((local_channel()) && $uid == local_channel()) {
 		$aid = get_account_id();
 		$hash = get_observer_hash();
 		$ch = $a->get_channel();
@@ -198,13 +192,15 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 	}
 
 	if($is_http) {
+
 		if(! intval(get_config('system','feed_contacts'))) {
 			$result['message'] = t('Protocol disabled.');
 			return $result;
 		}
 
-		$r = q("select count(*) as total from abook where abook_account = %d and ( abook_flags & ABOOK_FLAG_FEED )",
-			intval($aid)
+		$r = q("select count(*) as total from abook where abook_account = %d and ( abook_flags & %d )>0",
+			intval($aid),
+			intval(ABOOK_FLAG_FEED)
 		);
 		if($r)
 			$total_feeds = $r[0]['total'];
@@ -225,7 +221,7 @@ function new_contact($uid,$url,$channel,$interactive = false, $confirm = false) 
 		intval($uid)
 	);
 	if($r) {
-		$x = q("update abook set abook_their_perms = %d where abook_id = %d limit 1",
+		$x = q("update abook set abook_their_perms = %d where abook_id = %d",
 			intval($their_perms),
 			intval($r[0]['abook_id'])
 		);		

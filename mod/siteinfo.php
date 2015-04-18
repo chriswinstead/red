@@ -1,14 +1,15 @@
 <?php
 
 function siteinfo_init(&$a) {
-
+	global $db;
+	
 	if ($a->argv[1]=="json"){
 		$register_policy = Array('REGISTER_CLOSED', 'REGISTER_APPROVE', 'REGISTER_OPEN');
 		$directory_mode = Array('DIRECTORY_MODE_NORMAL', 'DIRECTORY_MODE_SECONDARY','DIRECTORY_MODE_PRIMARY', 'DIRECTORY_MODE_STANDALONE');
 		
 		$sql_extra = '';
 
-		$r = q("select * from channel left join account on account_id = channel_account_id where ( account_roles & 4096 ) and account_default_channel = channel_id");
+		$r = q("select * from channel left join account on account_id = channel_account_id where ( account_roles & 4096 )>0 and account_default_channel = channel_id");
 
 
 		if($r) {
@@ -71,6 +72,8 @@ function siteinfo_init(&$a) {
 			'admin' => $admin,
 			'site_name' => (($site_name) ? $site_name : ''),
 			'platform' => RED_PLATFORM,
+			'dbdriver' => $db->getdriver(),
+			'lastpoll' => get_config('system','lastpoll'),
 			'info' => (($site_info) ? $site_info : ''),
 			'channels_total' => $channels_total_stat,
 			'channels_active_halfyear' => $channels_active_halfyear_stat,
@@ -88,8 +91,10 @@ function siteinfo_content(&$a) {
 
 	if(! get_config('system','hidden_version_siteinfo')) {
 		$version = sprintf( t('Version %s'), RED_VERSION );
-		if(@is_dir('.git') && function_exists('shell_exec'))
+		if(@is_dir('.git') && function_exists('shell_exec')) {
 			$commit = @shell_exec('git log -1 --format="%h"');
+			$tag = @shell_exec('git describe --tags --abbrev=0');
+		}
 		if(! isset($commit) || strlen($commit) > 16)
 			$commit = '';
 	}
@@ -121,7 +126,8 @@ function siteinfo_content(&$a) {
 	else
 		$plugins_text = t('No installed plugins/addons/apps');
 
-	$admininfo = bbcode(get_config('system','admininfo'));
+	$txt = get_config('system','admininfo');
+	$admininfo = bbcode($txt);
 
 	if(file_exists('doc/site_donate.html'))
 		$donate .= file_get_contents('doc/site_donate.html');
@@ -130,9 +136,13 @@ function siteinfo_content(&$a) {
                 '$title' => t('Red'),
 		'$description' => t('This is a hub of the Red Matrix - a global cooperative network of decentralized privacy enhanced websites.'),
 		'$version' => $version,
+		'$tag_txt' => t('Tag: '),
+		'$tag' => $tag,
+		'$polled' => t('Last background fetch: '),
+		'$lastpoll' => get_poller_runtime(),
 		'$commit' => $commit,
 		'$web_location' => t('Running at web location') . ' ' . z_root(),
-		'$visit' => t('Please visit <a href="http://getzot.com">GetZot.com</a> to learn more about the Red Matrix.'),
+		'$visit' => t('Please visit <a href="https://redmatrix.me">RedMatrix.me</a> to learn more about the Red Matrix.'),
 		'$bug_text' => t('Bug reports and issues: please visit'),
 		'$bug_link_url' => 'https://github.com/friendica/red/issues',
 		'$bug_link_text' => 'redmatrix issues',

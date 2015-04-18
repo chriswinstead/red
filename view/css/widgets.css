@@ -7,6 +7,17 @@
 	margin-top: 0px;
 }
 
+
+.widget .nav-pills > li > a {
+	padding: 6px 10px;
+}
+
+.widget-input {
+	width: 100%;
+	border-top-right-radius: 0px;
+	border-bottom-right-radius: 0px;
+}
+
 /* suggest */
 
 .suggest-widget-more {
@@ -26,6 +37,7 @@
 /* notes */ 
 
 #note-text {
+	padding: 5px;
 	width: 100%;
 	resize: vertical;
 	height: 150px;
@@ -38,21 +50,6 @@
 }
 
 
-/* peoplefind */
-
-#peoplefind-sidebar .btn {
-	margin: 10px 0 10px 0;
-}
-
-#side-peoplefind-url {
-	margin-top: 5px;
-}
-
-#side-peoplefind-url {
-	font-size: 1em;
-}
-
-
 /* fileas */
 
 
@@ -62,14 +59,25 @@
 	margin: 2px 0px 0px 10px;
 }
 
+#posted-date-selector li:not(:first-child) {
+	margin-top: 2px;
+}
+
+#posted-date-selector-drop li:not(:first-child) {
+	margin-top: 2px;
+}
+
 /* categories */
 
 
 /* group */
 
+a.group-edit-tool {
+	z-index: 1;
+}
+
 .group-edit-icon {
 	opacity: 0;
-	z-index: 1;
 }
 
 li:hover .group-edit-icon {
@@ -95,4 +103,28 @@ li:hover .group-edit-icon {
 
 .chatroomlist td {
 	padding: 0 5px 0;
+}
+
+/* ratings */
+
+.directory-rating {
+	float: right;
+	margin-right: 5px;
+}
+
+.slider-container {
+	padding: 15px;
+}
+
+.rating-text-label {
+	margin-top: 30px;
+}
+
+.directory-rating-text {
+	width: 90%;
+	margin-left: 5%;
+}
+
+.directory-rating-submit {
+	margin-top: 15px;
 }

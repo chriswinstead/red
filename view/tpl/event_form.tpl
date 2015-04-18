@@ -1,45 +1,47 @@
+<div class="generic-content-wrapper-styled">
+
 <h3>{{$title}}</h3>
 
 <p>
-{{if ! $bootstrap}}
-{{$format_desc}} {{/if}}{{$desc}}
+{{$desc}}
 </p>
 
-<form action="{{$post}}" method="post" >
+<form id="event-edit-form" action="{{$post}}" method="post" >
 
 <input type="hidden" name="event_id" value="{{$eid}}" />
+<input type="hidden" name="event_hash" value="{{$event_hash}}" />
 <input type="hidden" name="xchan" value="{{$xchan}}" />
 <input type="hidden" name="mid" value="{{$mid}}" />
+<input type="hidden" name="preview" id="event-edit-preview" value="0" />
 
 <div id="event-summary-text">{{$t_text}}</div>
-<input type="text" id="event-summary" name="summary" value="{{$t_orig}}" />
+<input type="text" id="event-summary" name="summary" value="{{$t_orig}}" />{{$required}}
+
+<div class="clear"></div>
 
 <div id="event-start-text">{{$s_text}}</div>
-{{if $bootstrap}}
-<i class="icon-calendar btn btn-default" onclick="eventGetStart(); return false;" /></i> <input type="text" name="start_text" id="start-text" value="{{$stext}}" />
-{{else}}
-{{$s_dsel}} {{$s_tsel}}
-{{/if}}
+
+{{$s_dsel}}
 
 <div class="clear"></div><br />
 
-<input type="checkbox" name="nofinish" value="1" id="event-nofinish-checkbox" {{$n_checked}} onclick="showHideFinishDate(); return true;" /> <div id="event-nofinish-text">{{$n_text}}</div>
+   <div class='field checkbox'>
+   <label class="mainlabel" for='id_nofinish'>{{$n_text}}</label>
+   <div><input type="checkbox" name='nofinish' id='id_nofinish' value="1" {{$n_checked}} onclick="showHideFinishDate(); return true;" >
+	<label class="switchlabel" for='id_nofinish'> <span class="onoffswitch-inner" data-on='' data-off='' ></span>
+	<span class="onoffswitch-switch"></span> </label></div><span class='field_help'></span>
+    </div>
 
 <div id="event-nofinish-break"></div>
 
 <div id="event-finish-wrapper">
 <div id="event-finish-text">{{$f_text}}</div>
-{{if $bootstrap}}
-<i class="icon-calendar btn btn-default" onclick="eventGetFinish(); return false;" /></i> <input type="text" name="finish_text" id="finish-text" value="{{$ftext}}" />
-{{else}}
-{{$f_dsel}} {{$f_tsel}}
-{{/if}}
+{{$f_dsel}}
 </div>
 
 <div id="event-datetime-break"></div>
 
-
-<input type="checkbox" name="adjust" value="1" id="event-adjust-checkbox" {{$a_checked}} /> <div id="event-adjust-text">{{$a_text}}</div>
+{{include file="field_checkbox.tpl" field=$adjust}}
 
 <div id="event-adjust-break"></div>
 
@@ -47,104 +49,132 @@
 
 {{if $catsenabled}}
 <div id="event-category-wrap">
-	<input name="category" id="event-category" type="text" placeholder="{{$placeholdercategory}}" value="{{$category}}" class="event-cats" style="display: block;" />
+	<input name="category" id="event-category" type="text" placeholder="{{$placeholdercategory}}" value="{{$category}}" class="event-cats" style="display: block;" data-role="tagsinput"  />
 </div>
 {{/if}}
 
 
 
 <div id="event-desc-text">{{$d_text}}</div>
-<textarea id="event-desc-textarea" name="desc">{{$d_orig}}</textarea>
 
+<textarea id="comment-edit-text-desc" class="comment-edit-text-full" name="desc" >{{$d_orig}}</textarea>
+<div class="clear"></div>
+<div id="comment-tools-desc" class="comment-tools" style="display: block;" >
+	<div id="comment-edit-bb-desc" class="btn-toolbar pull-left">
+		<div class='btn-group'>
+			<button class="btn btn-default btn-xs" title="{{$edbold}}" onclick="insertbbcomment('{{$comment}}','b', 'desc'); return false;">
+				<i class="icon-bold comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$editalic}}" onclick="insertbbcomment('{{$comment}}','i', 'desc'); return false;">
+				<i class="icon-italic comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$eduline}}" onclick="insertbbcomment('{{$comment}}','u', 'desc'); return false;">
+				<i class="icon-underline comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$edquote}}" onclick="insertbbcomment('{{$comment}}','quote','desc'); return false;">
+				<i class="icon-quote-left comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$edcode}}" onclick="insertbbcomment('{{$comment}}','code', 'desc'); return false;">
+				<i class="icon-terminal comment-icon"></i>
+			</button>
+	</div>
+						
+	<div class='btn-group'>
+		<button class="btn btn-default btn-xs" title="{{$edimg}}" onclick="insertbbcomment('{{$comment}}','img', 'desc'); return false;">
+			<i class="icon-camera comment-icon"></i>
+		</button>
+		<button class="btn btn-default btn-xs" title="{{$edurl}}" onclick="insertbbcomment('{{$comment}}','url', 'desc'); return false;">
+			<i class="icon-link comment-icon"></i>
+		</button>
+		<button class="btn btn-default btn-xs" title="{{$edvideo}}" onclick="insertbbcomment('{{$comment}}','video', 'desc'); return false;">
+			<i class="icon-facetime-video comment-icon"></i>
+		</button>
+	</div>
+	
+	</div>
+					
+<!--	<div class="btn-group pull-right" id="comment-edit-submit-wrapper-desc">
+	{{if $preview}}
+	<button id="comment-edit-submit-desc" class="btn btn-default btn-xs" onclick="preview_comment(desc); return false;" title="{{$preview}}">
+		<i class="icon-eye-open comment-icon" ></i>
+	</button>
+	{{/if}}
+-->
+</div>
+
+<div class="clear"></div>
 
 <div id="event-location-text">{{$l_text}}</div>
-<textarea id="event-location-textarea" name="location">{{$l_orig}}</textarea>
-<br />
 
-<input type="checkbox" name="share" value="1" id="event-share-checkbox" {{$sh_checked}} /> <div id="event-share-text">{{$sh_text}}</div>
+<textarea id="comment-edit-text-loc" class="comment-edit-text-full" name="location">{{$l_orig}}</textarea>
+
+<div class="clear"></div>
+<div id="comment-tools-loc" class="comment-tools" style="display: block;" >
+	<div id="comment-edit-bb-loc" class="btn-toolbar pull-left">
+		<div class='btn-group'>
+			<button class="btn btn-default btn-xs" title="{{$edbold}}" onclick="insertbbcomment('{{$comment}}','b', 'loc'); return false;">
+				<i class="icon-bold comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$editalic}}" onclick="insertbbcomment('{{$comment}}','i', 'loc'); return false;">
+				<i class="icon-italic comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$eduline}}" onclick="insertbbcomment('{{$comment}}','u', 'loc'); return false;">
+				<i class="icon-underline comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$edquote}}" onclick="insertbbcomment('{{$comment}}','quote','loc'); return false;">
+				<i class="icon-quote-left comment-icon"></i>
+			</button>
+			<button class="btn btn-default btn-xs" title="{{$edcode}}" onclick="insertbbcomment('{{$comment}}','code', 'loc'); return false;">
+				<i class="icon-terminal comment-icon"></i>
+			</button>
+	</div>
+						
+	<div class='btn-group'>
+		<button class="btn btn-default btn-xs" title="{{$edimg}}" onclick="insertbbcomment('{{$comment}}','img', 'loc'); return false;">
+			<i class="icon-camera comment-icon"></i>
+		</button>
+		<button class="btn btn-default btn-xs" title="{{$edurl}}" onclick="insertbbcomment('{{$comment}}','url', 'loc'); return false;">
+			<i class="icon-link comment-icon"></i>
+		</button>
+		<button class="btn btn-default btn-xs" title="{{$edvideo}}" onclick="insertbbcomment('{{$comment}}','video', 'loc'); return false;">
+			<i class="icon-facetime-video comment-icon"></i>
+		</button>
+		<button class="btn btn-default btn-xs" title="{{$mapper}}" onclick="insertbbcomment('{{$comment}}','map','loc'); return false;">
+			<i class="icon-globe comment-icon"></i>
+		</button>
+	</div>
+	
+	</div>
+					
+
+</div>
+
+
+
+<br />
+<div class="clear event-form-location-end"></div>
+
+
+   <div class='field checkbox'>
+   <label class="mainlabel" for='id_share'>{{$sh_text}}</label>
+   <div><input type="checkbox" name='share' id='id_share' value="1" {{$sh_checked}} >
+	<label class="switchlabel" for='id_share'> <span class="onoffswitch-inner" data-on='' data-off='' ></span>
+	<span class="onoffswitch-switch"></span> </label></div><span class='field_help'></span>
+    </div>
+
+
 <div id="event-share-break"></div>
 
+
+
+<button id="event-permissions-button" class="btn btn-default btn-xs" data-toggle="modal" data-target="#aclModal" onclick="return false;">{{$permissions}}</button>
 {{$acl}}
 
 <div class="clear"></div>
+
+<button id="event-edit-preview-btn" class="btn btn-default" title="{{$preview}}" onclick="doEventPreview(); return false;"><i class="icon-eye-open" ></i></button>
+
 <input id="event-submit" type="submit" name="submit" value="{{$submit}}" />
 </form>
 
-<!-- Modal for item expiry-->
-<div class="modal" id="startModal" tabindex="-1" role="dialog" aria-labelledby="expiryModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title" id="startModalLabel">{{$s_text}}</h4>
-      </div>
-     <!--  <div class="modal-body"> -->
-            <div class="modal-body form-group" style="width:90%">
-                <div class="input-group input-group-sm date" id="datetimepickerstart">
-                    <span class="input-group-addon"><!-- <span class="glyphicon glyphicon-calendar"></span> -->
-                    <span class="icon-calendar"></span>
-                    </span>
-                    <input id="start-date" value='{{$stext}}' type='text' class="form-control" data-date-format="YYYY-MM-DD HH:mm" size="20"/>
-                </div>
-            </div>
-      <!-- </div> -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">{{$ModalCANCEL}}</button>
-        <button id="start-modal-OKButton" type="button" class="btn btn-primary">{{$ModalOK}}</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-<script type="text/javascript">
-  $(function() {
-    $('#datetimepickerstart').datetimepicker({
-      language: 'us',
-      icons: {
-					time: "icon-time",
-					date: "icon-calendar",
-					up: "icon-arrow-up",
-					down: "icon-arrow-down"
-				}
-    });
-  });
-</script>
-
-<!-- Modal for item expiry-->
-<div class="modal" id="finishModal" tabindex="-1" role="dialog" aria-labelledby="expiryModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title" id="finishModalLabel">{{$s_text}}</h4>
-      </div>
-     <!--  <div class="modal-body"> -->
-            <div class="modal-body form-group" style="width:90%">
-                <div class="input-group input-group-sm date" id="datetimepickerfinish">
-                    <span class="input-group-addon"><!-- <span class="glyphicon glyphicon-calendar"></span> -->
-                    <span class="icon-calendar"></span>
-                    </span>
-                    <input id="finish-date" value='{{$ftext}}' type='text' class="form-control" data-date-format="YYYY-MM-DD HH:mm" size="20"/>
-                </div>
-            </div>
-      <!-- </div> -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">{{$ModalCANCEL}}</button>
-        <button id="finish-modal-OKButton" type="button" class="btn btn-primary">{{$ModalOK}}</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-<script type="text/javascript">
-  $(function() {
-    $('#datetimepickerfinish').datetimepicker({
-      language: 'us',
-      icons: {
-					time: "icon-time",
-					date: "icon-calendar",
-					up: "icon-arrow-up",
-					down: "icon-arrow-down"
-				}
-    });
-  });
-</script>
-
+</div>

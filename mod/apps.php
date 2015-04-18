@@ -13,8 +13,8 @@ function apps_content(&$a) {
 
 	$syslist = get_system_apps();
 
-	if(local_user()) {
-		$list = app_list(local_user());
+	if(local_channel()) {
+		$list = app_list(local_channel());
 		if($list) {
 			foreach($list as $x) {
 				$syslist[] = app_encode($x);
@@ -30,6 +30,7 @@ function apps_content(&$a) {
 	}
 
 	return replace_macros(get_markup_template('myapps.tpl'), array(
+		'$sitename' => get_config('system','sitename'),
 		'$title' => t('Apps'),
 		'$apps' => $apps,
 	));

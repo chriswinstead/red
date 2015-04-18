@@ -50,6 +50,8 @@
 		$search_background = "#000";
 	if (! $bgcolour)
 		$bgcolour = "#000";
+	if (! $genericcontent_bgcolour)
+		$genericcontent_bgcolour ='rgba(0,0,0,0.8)';
 	if (! $item_colour)
 		$item_colour = "rgba(0,0,0,0.8)";
 	if (! $comment_item_colour)
@@ -174,6 +176,8 @@
       $advperm_gradientcol = "#000";
    if(! $cal_bgcolour)
       $cal_bgcolour = "#000";
+   if(! $chat_txtbgcol)
+      $chat_txtbgcol = "#000";
    if(! $fancybox_bgcolour)
       $fancybox_bgcolour = "#000";
 	if (!$admintable_hoverbgcol)

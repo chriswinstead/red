@@ -74,12 +74,12 @@ function zfinger_init(&$a) {
 			 */
 
 			$r = q("select channel.*, xchan.* from channel left join xchan on channel_hash = xchan_hash
-				where ( channel_pageflags & %d ) order by channel_id limit 1",
+				where ( channel_pageflags & %d )>0 order by channel_id limit 1",
 				intval(PAGE_SYSTEM)
 			);
 			if(! $r) {
 				$r = q("select channel.*, xchan.* from channel left join xchan on channel_hash = xchan_hash
-					where not ( channel_pageflags & %d ) order by channel_id limit 1",
+					where not ( channel_pageflags & %d )>0 order by channel_id limit 1",
 					intval(PAGE_REMOVED)
 				);
 			}
@@ -99,15 +99,31 @@ function zfinger_init(&$a) {
 
 	$id = $e['channel_id'];
 
+	$sys_channel     = (($e['channel_pageflags'] & PAGE_SYSTEM)   ? true : false);
 	$special_channel = (($e['channel_pageflags'] & PAGE_PREMIUM)  ? true : false);
 	$adult_channel   = (($e['channel_pageflags'] & PAGE_ADULT)    ? true : false);
 	$censored        = (($e['channel_pageflags'] & PAGE_CENSORED) ? true : false);
 	$searchable      = (($e['channel_pageflags'] & PAGE_HIDDEN)   ? false : true);
 	$deleted         = (($e['xchan_flags'] & XCHAN_FLAGS_DELETED) ? true : false);
 
-	if($deleted || $censored)
+	if($deleted || $censored || $sys_channel)
 		$searchable = false;
 	 
+	$public_forum = false;
+
+	$role = get_pconfig($e['channel_id'],'system','permissions_role');
+	if($role === 'forum') {
+		$public_forum = true;
+	}
+	else {
+		// check if it has characteristics of a public forum based on custom permissions.
+		$t = q("select abook_my_perms from abook where abook_channel = %d and (abook_flags & %d)>0 limit 1",
+			intval($e['channel_id']),
+			intval(ABOOK_FLAG_SELF)
+		);
+		if($t && ($t[0]['abook_my_perms'] & PERMS_W_TAGWALL))
+			$public_forum = true;
+	}
 
 
 	//  This is for birthdays and keywords, but must check access permissions
@@ -174,6 +190,7 @@ function zfinger_init(&$a) {
 	$ret['target_sig']     = $zsig;
 	$ret['searchable']     = $searchable;
 	$ret['adult_content']  = $adult_channel;
+	$ret['public_forum']   = $public_forum;
 	if($deleted)
 		$ret['deleted']        = $deleted;	
 
@@ -221,6 +238,12 @@ function zfinger_init(&$a) {
 	$dirmode = get_config('system','directory_mode');
 	if(($dirmode === false) || ($dirmode == DIRECTORY_MODE_NORMAL))
 		$ret['site']['directory_mode'] = 'normal';
+
+	// downgrade mis-configured primaries
+
+	if($dirmode == DIRECTORY_MODE_PRIMARY && z_root() != get_directory_primary())
+		$dirmode = DIRECTORY_MODE_SECONDARY;
+
 	if($dirmode == DIRECTORY_MODE_PRIMARY)
 		$ret['site']['directory_mode'] = 'primary';
 	elseif($dirmode == DIRECTORY_MODE_SECONDARY)

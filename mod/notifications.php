@@ -2,7 +2,7 @@
 
 function notifications_post(&$a) {
 
-	if(! local_user()) {
+	if(! local_channel()) {
 		goaway(z_root());
 	}
 	
@@ -15,7 +15,7 @@ function notifications_post(&$a) {
 
 		$r = q("SELECT * FROM `intro` WHERE `id` = %d  AND `uid` = %d LIMIT 1",
 			intval($request_id),
-			intval(local_user())
+			intval(local_channel())
 		);
 	
 		if(count($r)) {
@@ -33,7 +33,7 @@ function notifications_post(&$a) {
 		$fid = $r[0]['fid'];
 
 		if($_POST['submit'] == t('Discard')) {
-			$r = q("DELETE FROM `intro` WHERE `id` = %d LIMIT 1", 
+			$r = q("DELETE FROM `intro` WHERE `id` = %d", 
 				intval($intro_id)
 			);	
 			if(! $fid) {
@@ -41,15 +41,15 @@ function notifications_post(&$a) {
 				// The check for blocked and pending is in case the friendship was already approved
 				// and we just want to get rid of the now pointless notification
 
-				$r = q("DELETE FROM `contact` WHERE `id` = %d AND `uid` = %d AND `self` = 0 AND `blocked` = 1 AND `pending` = 1 LIMIT 1", 
+				$r = q("DELETE FROM `contact` WHERE `id` = %d AND `uid` = %d AND `self` = 0 AND `blocked` = 1 AND `pending` = 1", 
 					intval($contact_id),
-					intval(local_user())
+					intval(local_channel())
 				);
 			}
 			goaway($a->get_baseurl(true) . '/notifications/intros');
 		}
 		if($_POST['submit'] == t('Ignore')) {
-			$r = q("UPDATE `intro` SET `ignore` = 1 WHERE `id` = %d LIMIT 1",
+			$r = q("UPDATE `intro` SET `ignore` = 1 WHERE `id` = %d",
 				intval($intro_id));
 			goaway($a->get_baseurl(true) . '/notifications/intros');
 		}
@@ -62,7 +62,7 @@ function notifications_post(&$a) {
 
 function notifications_content(&$a) {
 
-	if(! local_user()) {
+	if(! local_channel()) {
 		notice( t('Permission denied.') . EOL);
 		return;
 	}
@@ -77,7 +77,7 @@ function notifications_content(&$a) {
 		require_once('include/bbcode.php');
 
 		$r = q("SELECT * from notify where uid = %d and seen = 0 order by date desc",
-			intval(local_user())
+			intval(local_channel())
 		);
 		
 		if (count($r) > 0) {

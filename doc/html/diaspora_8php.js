@@ -4,7 +4,7 @@ var diaspora_8php =
     [ "diaspora_comment", "diaspora_8php.html#a0fb2abe304aae19efc040a5e6b917829", null ],
     [ "diaspora_conversation", "diaspora_8php.html#adef30b6fac948baedcc7194d5d155b5f", null ],
     [ "diaspora_decode", "diaspora_8php.html#a849754ec369e1a60fadae5c14584ca36", null ],
-    [ "diaspora_dispatch", "diaspora_8php.html#a6f0a67b6b17503c125af32763be931b7", null ],
+    [ "diaspora_dispatch", "diaspora_8php.html#af677aaaaf921f5acecf52ae92ac42c66", null ],
     [ "diaspora_dispatch_public", "diaspora_8php.html#ab99505944728d46585b8312989de533d", null ],
     [ "diaspora_get_contact_by_handle", "diaspora_8php.html#aa8e551a53fcce34be3942d0c3e20d1f4", null ],
     [ "diaspora_handle_from_contact", "diaspora_8php.html#a5ed66b910d7b0284f9b3ee04e72306ff", null ],
@@ -13,7 +13,7 @@ var diaspora_8php =
     [ "diaspora_like", "diaspora_8php.html#a5d57518545baa31cf8a85a937a267681", null ],
     [ "diaspora_message", "diaspora_8php.html#a7cff2f8f11044c1b3a360f20e1bbee46", null ],
     [ "diaspora_msg_build", "diaspora_8php.html#a4901762cba5cd8dcdc57bdf285eefb1b", null ],
-    [ "diaspora_photo", "diaspora_8php.html#a71fe9bb66626b4197ae018a230778bb2", null ],
+    [ "diaspora_photo", "diaspora_8php.html#a72b2887e8be2e51d0114c16499e6ed4c", null ],
     [ "diaspora_post", "diaspora_8php.html#a20b968d64ef26afe5cb0cc75a7570a31", null ],
     [ "diaspora_process_outbound", "diaspora_8php.html#a131abd521b218d6ae6f7d2917d8b2605", null ],
     [ "diaspora_profile", "diaspora_8php.html#a900abf51398b2ef26cd2cd31c52f1b0f", null ],
@@ -32,5 +32,6 @@ var diaspora_8php =
     [ "diaspora_transmit", "diaspora_8php.html#aa704d6aa2ac77be345c0f501168e6e56", null ],
     [ "diaspora_unshare", "diaspora_8php.html#ab736d6f32b5de31c97cb579fc730e200", null ],
     [ "find_diaspora_person_by_handle", "diaspora_8php.html#aade0c165fcdded71352c7a67bf6ce37b", null ],
-    [ "get_diaspora_key", "diaspora_8php.html#a9bf7ef4094e0e14f6e2b7fe76ab7ad2e", null ]
+    [ "get_diaspora_key", "diaspora_8php.html#a9bf7ef4094e0e14f6e2b7fe76ab7ad2e", null ],
+    [ "get_diaspora_reshare_xml", "diaspora_8php.html#ac9e41e46626dc608204bf4b5e16e62d7", null ]
 ];

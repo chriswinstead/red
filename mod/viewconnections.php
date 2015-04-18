@@ -4,7 +4,7 @@ require_once('include/Contact.php');
 
 function viewconnections_init(&$a) {
 
-	if((get_config('system','block_public')) && (! local_user()) && (! remote_user())) {
+	if((get_config('system','block_public')) && (! local_channel()) && (! remote_channel())) {
 		return;
 	}
 	if(argc() > 1)
@@ -13,7 +13,7 @@ function viewconnections_init(&$a) {
 
 function viewconnections_content(&$a) {
 
-	if((get_config('system','block_public')) && (! local_user()) && (! remote_user())) {
+	if((get_config('system','block_public')) && (! local_channel()) && (! remote_channel())) {
 		notice( t('Public access denied.') . EOL);
 		return;
 	}
@@ -28,7 +28,7 @@ function viewconnections_content(&$a) {
 		return;
 	} 
 
-	$is_owner = ((local_user() && local_user() == $a->profile['uid']) ? true : false);
+	$is_owner = ((local_channel() && local_channel() == $a->profile['uid']) ? true : false);
 
 	$abook_flags = ABOOK_FLAG_PENDING|ABOOK_FLAG_SELF;
 	$xchan_flags = XCHAN_FLAGS_ORPHAN|XCHAN_FLAGS_DELETED;
@@ -37,7 +37,7 @@ function viewconnections_content(&$a) {
 		$xchan_flags = $xchan_flags | XCHAN_FLAGS_HIDDEN;
 	}
 
-	$r = q("SELECT count(*) as total FROM abook left join xchan on abook_xchan = xchan_hash where abook_channel = %d and not (abook_flags & %d ) and not ( xchan_flags & %d ) ",
+	$r = q("SELECT count(*) as total FROM abook left join xchan on abook_xchan = xchan_hash where abook_channel = %d and not (abook_flags & %d )>0 and not ( xchan_flags & %d )>0 ",
 		intval($a->profile['uid']),
 		intval($abook_flags),
 		intval($xchan_flags)
@@ -46,12 +46,12 @@ function viewconnections_content(&$a) {
 		$a->set_pager_total($r[0]['total']);
 	}
 
-	$r = q("SELECT * FROM abook left join xchan on abook_xchan = xchan_hash where abook_channel = %d and not ( abook_flags & %d ) and not ( xchan_flags & %d ) order by xchan_name LIMIT %d , %d ",
+	$r = q("SELECT * FROM abook left join xchan on abook_xchan = xchan_hash where abook_channel = %d and not ( abook_flags & %d )>0 and not ( xchan_flags & %d )>0 order by xchan_name LIMIT %d OFFSET %d ",
 		intval($a->profile['uid']),
 		intval($abook_flags),
 		intval($xchan_flags),
-		intval($a->pager['start']),
-		intval($a->pager['itemspage'])
+		intval($a->pager['itemspage']),
+		intval($a->pager['start'])
 	);
 
 	if(! $r) {
@@ -83,7 +83,7 @@ function viewconnections_content(&$a) {
 
 	$tpl = get_markup_template("viewcontact_template.tpl");
 	$o .= replace_macros($tpl, array(
-		'$title' => t('View Connnections'),
+		'$title' => t('View Connections'),
 		'$contacts' => $contacts,
 		'$paginate' => paginate($a),
 	));

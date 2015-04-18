@@ -384,7 +384,7 @@ function validate_url(&$url) {
 		$url = 'http://' . $url;
 	$h = @parse_url($url);
 	
-	if(($h) && (dns_get_record($h['host'], DNS_A + DNS_CNAME + DNS_PTR) || filter_var($h['host'], FILTER_VALIDATE_IP) )) {
+	if(($h) && (@dns_get_record($h['host'], DNS_A + DNS_CNAME + DNS_PTR) || filter_var($h['host'], FILTER_VALIDATE_IP) )) {
 		return true;
 	}
 	return false;
@@ -402,7 +402,7 @@ function validate_email($addr) {
 		return false;
 	$h = substr($addr,strpos($addr,'@') + 1);
 
-	if(($h) && (dns_get_record($h, DNS_A + DNS_CNAME + DNS_PTR + DNS_MX) || filter_var($h['host'], FILTER_VALIDATE_IP) )) {
+	if(($h) && (@dns_get_record($h, DNS_A + DNS_CNAME + DNS_PTR + DNS_MX) || filter_var($h, FILTER_VALIDATE_IP) )) {
 		return true;
 	}
 	return false;
@@ -464,24 +464,47 @@ function allowed_email($email) {
 		return false;
 
 	$str_allowed = get_config('system','allowed_email');
-	if(! $str_allowed)
+	$str_not_allowed = get_config('system','not_allowed_email');
+		
+	if(! $str_allowed && ! $str_not_allowed)
 		return true;
 
-	$found = false;
-
+	$return = false;
+	$found_allowed = false;	
+	$found_not_allowed = false;
+	
 	$fnmatch = function_exists('fnmatch');
+
 	$allowed = explode(',',$str_allowed);
 
 	if(count($allowed)) {
 		foreach($allowed as $a) {
 			$pat = strtolower(trim($a));
-			if(($fnmatch && fnmatch($pat,$domain)) || ($pat == $domain)) {
-				$found = true; 
+			if(($fnmatch && fnmatch($pat,$email)) || ($pat == $domain)) {
+				$found_allowed = true; 
 				break;
 			}
 		}
 	}
-	return $found;
+
+	$not_allowed = explode(',',$str_not_allowed);
+
+	if(count($not_allowed)) {
+		foreach($not_allowed as $na) {
+			$pat = strtolower(trim($na));
+			if(($fnmatch && fnmatch($pat,$email)) || ($pat == $domain)) {
+				$found_not_allowed = true; 
+				break;
+			}
+		}
+	}	
+	
+	if ($found_allowed) {
+		$return = true;	
+	} elseif (!$str_allowed && !$found_not_allowed) {
+		$return = true;	
+	}
+	return $return;
 }
 
 
@@ -991,7 +1014,7 @@ function discover_by_url($url,$arr = null) {
 	);
 
 	$photos = import_profile_photo($photo,$guid);
-	$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_hash = '%s' limit 1",
+	$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_hash = '%s'",
 		dbesc(datetime_convert()),
 		dbesc($photos[0]),
 		dbesc($photos[1]),
@@ -1092,25 +1115,27 @@ function discover_by_webbie($webbie) {
 			$r = q("select * from xchan where xchan_hash = '%s' limit 1",
 				dbesc($webbie)
 			);
-			if($r)
-				return true;
+			if(! $r) {
 
-			$r = q("insert into xchan ( xchan_hash, xchan_guid, xchan_pubkey, xchan_addr, xchan_url, xchan_name, xchan_network, xchan_instance_url, xchan_name_date ) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ",
-				dbesc($addr),
-				dbesc($guid),
-				dbesc($pubkey),
-				dbesc($addr),
-				dbesc($profile),
-				dbesc($vcard['fn']),
-				dbesc($network),
-				dbesc(z_root()),
-				dbesc(datetime_convert())
-			);
+				$r = q("insert into xchan ( xchan_hash, xchan_guid, xchan_pubkey, xchan_addr, xchan_url, xchan_name, xchan_network, xchan_instance_url, xchan_name_date ) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ",
+					dbesc($addr),
+					dbesc($guid),
+					dbesc($pubkey),
+					dbesc($addr),
+					dbesc($profile),
+					dbesc($vcard['fn']),
+					dbesc($network),
+					dbesc(z_root()),
+					dbescdate(datetime_convert())
+				);
+			}
 
 			$r = q("select * from hubloc where hubloc_hash = '%s' limit 1",
 				dbesc($webbie)
 			);
+
 			if(! $r) {
+
 				$r = q("insert into hubloc ( hubloc_guid, hubloc_hash, hubloc_addr, hubloc_network, hubloc_url, hubloc_host, hubloc_callback, hubloc_updated, hubloc_flags ) values ('%s','%s','%s','%s','%s','%s','%s','%s', %d)",
 					dbesc($guid),
 					dbesc($addr),
@@ -1119,13 +1144,13 @@ function discover_by_webbie($webbie) {
 					dbesc(trim($diaspora_base,'/')),
 					dbesc($hostname),
 					dbesc($notify),
-					dbesc(datetime_convert()),
+					dbescdate(datetime_convert()),
 					intval(HUBLOC_FLAGS_PRIMARY)
 				);
 			}
 			$photos = import_profile_photo($vcard['photo'],$addr);
-			$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_hash = '%s' limit 1",
-				dbesc(datetime_convert('UTC','UTC',$arr['photo_updated'])),
+			$r = q("update xchan set xchan_photo_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_hash = '%s'",
+				dbescdate(datetime_convert('UTC','UTC',$arr['photo_updated'])),
 				dbesc($photos[0]),
 				dbesc($photos[1]),
 				dbesc($photos[2]),
@@ -1498,3 +1523,27 @@ function scrape_feed($url) {
 	return $ret;
 }
 
+
+
+function service_plink($contact, $guid) {
+
+	$plink = '';
+
+	$m = parse_url($contact['xchan_url']);
+	if($m) {
+		$url = $m['scheme'] . '://' . $m['host'] . (($m['port']) ? ':' . $m['port'] : '');
+	}
+	else
+		$url = 'https://' . substr($contact['xchan_addr'],strpos($contact['xchan_addr'],'@')+1);
+
+	$handle = substr($contact['xchan_addr'], 0, strpos($contact['xchan_addr'],'@'));
+
+	if($contact['xchan_network'] === 'diaspora')
+		$plink = $url . '/posts/' . $guid;
+	if($contact['xchan_network'] === 'friendica-over-diaspora')
+		$plink = $url . '/display/' . $handle . '/' . $guid;
+	if($contact['xchan_network'] === 'zot')
+		$plink = $url . '/channel/' . $handle . '?f=&mid=' . $guid;
+
+	return $plink;
+}

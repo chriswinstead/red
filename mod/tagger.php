@@ -7,16 +7,14 @@ require_once('include/items.php');
 
 function tagger_content(&$a) {
 
-	if(! local_user() && ! remote_user()) {
+	if(! local_channel() && ! remote_channel()) {
 		return;
 	}
 
 	$observer_hash = get_observer_hash();
-
+	//strip html-tags
 	$term = notags(trim($_GET['term']));
-	// no commas allowed
-	$term = str_replace(array(',',' '),array('','_'),$term);
-
+	//check if empty
 	if(! $term)
 		return;
 
@@ -27,7 +25,7 @@ function tagger_content(&$a) {
 
 	$r = q("SELECT * FROM item left join xchan on xchan_hash = author_xchan WHERE id = '%s' and uid = %d LIMIT 1",
 		dbesc($item_id),
-		intval(local_user())
+		intval(local_channel())
 	);
 
 	if((! $item_id) || (! $r)) {

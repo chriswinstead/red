@@ -37,6 +37,30 @@ function like_content(&$a) {
 		case 'undislike':
 			$activity = ACTIVITY_DISLIKE;
 			break;
+		case 'agree':
+		case 'unagree':
+			$activity = ACTIVITY_AGREE;
+			break;
+		case 'disagree':
+		case 'undisagree':
+			$activity = ACTIVITY_DISAGREE;
+			break;
+		case 'abstain':
+		case 'unabstain':
+			$activity = ACTIVITY_ABSTAIN;
+			break;
+		case 'attendyes':
+		case 'unattendyes':
+			$activity = ACTIVITY_ATTEND;
+			break;
+		case 'attendno':
+		case 'unattendno':
+			$activity = ACTIVITY_ATTENDNO;
+			break;
+		case 'attendmaybe':
+		case 'unattendmaybe':
+			$activity = ACTIVITY_ATTENDMAYBE;
+			break;
 		default:
 			return;
 			break;
@@ -209,13 +233,17 @@ function like_content(&$a) {
 	}
 	else {
 
+		// this is used to like an item or comment
+
 		$item_id = ((argc() == 2) ? notags(trim(argv(1))) : 0);
 
 		logger('like: verb ' . $verb . ' item ' . $item_id, LOGGER_DEBUG);
 
+		// get the item. Allow linked photos (which are normally hidden) to be liked
 
-		$r = q("SELECT * FROM item WHERE id = %d and item_restrict = 0 LIMIT 1",
-			dbesc($item_id)
+		$r = q("SELECT * FROM item WHERE id = %d and (item_restrict = 0 or item_restrict = %d) LIMIT 1",
+			intval($item_id),
+			intval(ITEM_HIDDEN)
 		);
 
 		if(! $item_id || (! $r)) {
@@ -259,29 +287,42 @@ function like_content(&$a) {
 		else
 			killme();
 
+		
+		$verbs = " '".dbesc($activity)."' ";
+		$multi_undo = 0;		
 
-		$r = q("SELECT * FROM item WHERE verb = '%s' AND item_restrict = 0 
-			AND author_xchan = '%s' AND ( parent = %d OR thr_parent = '%s') LIMIT 1",
-			dbesc($activity),
-			dbesc($observer['xchan_hash']),
-			intval($item_id),
-			dbesc($item['mid'])
-		);
-		if($r) {
-			$like_item = $r[0];
+		// event participation and consensus items are essentially radio toggles. If you make a subsequent choice,
+		// we need to eradicate your first choice. 
 
-			// Already liked/disliked it, delete it
-
-			$r = q("UPDATE item SET item_restrict = ( item_restrict ^ %d ), changed = '%s' WHERE id = %d LIMIT 1",
-				intval(ITEM_DELETED),
-				dbesc(datetime_convert()),
-				intval($like_item['id'])
-			);
-
-			proc_run('php',"include/notifier.php","like",$like_item['id']);
-			return;
+		if($activity === ACTIVITY_ATTEND || $activity === ACTIVITY_ATTENDNO || $activity === ACTIVITY_ATTENDMAYBE) {
+			$verbs = " '" . dbesc(ACTIVITY_ATTEND) . "','" . dbesc(ACTIVITY_ATTENDNO) . "','" . dbesc(ACTIVITY_ATTENDMAYBE) . "' ";
+			$multi_undo = 1;
+		}
+		if($activity === ACTIVITY_AGREE || $activity === ACTIVITY_DISAGREE || $activity === ACTIVITY_ABSTAIN) {
+			$verbs = " '" . dbesc(ACTIVITY_AGREE) . "','" . dbesc(ACTIVITY_DISAGREE) . "','" . dbesc(ACTIVITY_ABSTAIN) . "' ";
+			$multi_undo = 1;
 		}
 
+
+		$r = q("SELECT id FROM item WHERE verb in ( $verbs ) AND item_restrict = 0 
+			AND author_xchan = '%s' AND ( parent = %d OR thr_parent = '%s') and uid = %d ",
+			dbesc($observer['xchan_hash']),
+			intval($item_id),
+			dbesc($item['mid']),
+			intval($owner_uid)
+		);
+
+		if($r) {
+			// already liked it. Drop that item.
+			require_once('include/items.php');
+			foreach($r as $rr) {
+				drop_item($rr['id'],true,DROPITEM_PHASE1);
+			}
+			if($interactive)
+				return;
+			if(! $multi_undo)
+				killme();
+		}
 	}
 
 	$mid = item_message_id();
@@ -292,6 +333,8 @@ function like_content(&$a) {
 	}
 	else {
 		$post_type = (($item['resource_type'] === 'photo') ? t('photo') : t('status'));
+		if($item['obj_type'] === ACTIVITY_OBJ_EVENT)
+			$post_type = t('event');
 
 		$links = array(array('rel' => 'alternate','type' => 'text/html', 'href' => $item['plink']));
 		$objtype = (($item['resource_type'] === 'photo') ? ACTIVITY_OBJ_PHOTO : ACTIVITY_OBJ_NOTE ); 
@@ -325,12 +368,33 @@ function like_content(&$a) {
 		if($item['item_flags'] & ITEM_WALL)
 			$item_flags |= ITEM_WALL;
 
+		// if this was a linked photo and was hidden, unhide it.
+
+		if($item['item_restrict'] & ITEM_HIDDEN) {
+			$r = q("update item set item_restrict = (item_restrict ^ %d) where id = %d",
+				intval(ITEM_HIDDEN),
+				intval($item['id'])
+			);
+		}	
+
 	}
 
 	if($verb === 'like')
 		$bodyverb = t('%1$s likes %2$s\'s %3$s');
 	if($verb === 'dislike')
 		$bodyverb = t('%1$s doesn\'t like %2$s\'s %3$s');
+	if($verb === 'agree')
+		$bodyverb = t('%1$s agrees with %2$s\'s %3$s');
+	if($verb === 'disagree')
+		$bodyverb = t('%1$s doesn\'t agree with %2$s\'s %3$s');
+	if($verb === 'abstain')
+		$bodyverb = t('%1$s abstains from a decision on %2$s\'s %3$s');
+	if($verb === 'attendyes')
+		$bodyverb = t('%1$s is attending %2$s\'s %3$s');
+	if($verb === 'attendno')
+		$bodyverb = t('%1$s is not attending %2$s\'s %3$s');
+	if($verb === 'attendmaybe')
+		$bodyverb = t('%1$s may attend %2$s\'s %3$s');
 
 	if(! isset($bodyverb))
 			killme(); 

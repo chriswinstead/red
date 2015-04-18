@@ -9,7 +9,7 @@ require_once('include/Contact.php');
 
 function mail_post(&$a) {
 
-	if(! local_user())
+	if(! local_channel())
 		return;
 
 	$replyto   = ((x($_REQUEST,'replyto'))      ? notags(trim($_REQUEST['replyto']))      : '');
@@ -79,9 +79,12 @@ function mail_post(&$a) {
 		}
 	}
 
-//	if(feature_enabled(local_user(),'richtext')) {
+//	if(feature_enabled(local_channel(),'richtext')) {
 //		$body = fix_mce_lf($body);
 //	}
+
+	require_once('include/text.php');
+	linkify_tags($a, $body, local_channel());
 
 	if(! $recipient) {
 		notice('No recipient found.');
@@ -90,7 +93,7 @@ function mail_post(&$a) {
 		return;
 	}
 
-	// We have a local_user, let send_message use the session channel and save a lookup
+	// We have a local_channel, let send_message use the session channel and save a lookup
 	
 	$ret = send_message(0, $recipient, $body, $subject, $replyto, $expires);
 
@@ -107,15 +110,16 @@ function mail_content(&$a) {
 	$o = '';
 	nav_set_selected('messages');
 
-	if(! local_user()) {
+	if(! local_channel()) {
 		notice( t('Permission denied.') . EOL);
 		return login();
 	}
 
 	$channel = $a->get_channel();
+
 	head_set_icon($channel['xchan_photo_s']);
 
-	$cipher = get_pconfig(local_user(),'system','default_cipher');
+	$cipher = get_pconfig(local_channel(),'system','default_cipher');
 	if(! $cipher)
 		$cipher = 'aes256';
 
@@ -130,7 +134,7 @@ function mail_content(&$a) {
 			return;
 		$cmd = argv(1);
 
-		$r = private_messages_drop(local_user(), argv(2));
+		$r = private_messages_drop(local_channel(), argv(2));
 		if($r) {
 			info( t('Message deleted.') . EOL );
 		}
@@ -141,10 +145,10 @@ function mail_content(&$a) {
 		if(! intval(argv(2)))
 			return;
 		$cmd = argv(1);
-		$r = q("update mail set mail_flags = mail_flags | %d where id = %d and channel_id = %d limit 1",
+		$r = q("update mail set mail_flags = mail_flags | %d where id = %d and channel_id = %d",
 			intval(MAIL_RECALLED),
 			intval(argv(2)),
-			intval(local_user())
+			intval(local_channel())
 		);
 		proc_run('php','include/notifier.php','mail',intval(argv(2)));
 
@@ -163,13 +167,16 @@ function mail_content(&$a) {
 
 		$tpl = get_markup_template('msg-header.tpl');
 
-		$a->page['htmlhead'] .= replace_macros($tpl, array(
+		$header = replace_macros($tpl, array(
 			'$baseurl' => $a->get_baseurl(true),
 			'$editselect' => (($plaintext) ? 'none' : '/(profile-jot-text|prvmail-text)/'),
 			'$nickname' => $channel['channel_address'],
 			'$linkurl' => t('Please enter a link URL:'),
 			'$expireswhen' => t('Expires YYYY-MM-DD HH:MM')
 		));
+
+		$a->page['htmlhead'] .= $header;
+
 	
 		$preselect = (isset($a->argv[2])?array($a->argv[2]):false);
 		$prename = $preurl = $preid = '';
@@ -177,7 +184,7 @@ function mail_content(&$a) {
 		if(x($_REQUEST,'hash')) {
 			$r = q("select abook.*, xchan.* from abook left join xchan on abook_xchan = xchan_hash
 				where abook_channel = %d and abook_xchan = '%s' limit 1",
-				intval(local_user()),
+				intval(local_channel()),
 				dbesc($_REQUEST['hash'])
 			);
 			if($r) {
@@ -192,7 +199,7 @@ function mail_content(&$a) {
 		if($preselect) {
 			$r = q("select abook.*, xchan.* from abook left join xchan on abook_xchan = xchan_hash
 				where abook_channel = %d and abook_id = %d limit 1",
-				intval(local_user()),
+				intval(local_channel()),
 				intval(argv(2))
 			);
 			if($r) {
@@ -234,9 +241,9 @@ function mail_content(&$a) {
 			'$wait' => t('Please wait'),
 			'$submit' => t('Send'),
 			'$defexpire' => '',
-			'$feature_expire' => ((feature_enabled(local_user(),'content_expire')) ? true : false),
+			'$feature_expire' => ((feature_enabled(local_channel(),'content_expire')) ? true : false),
 			'$expires' => t('Set expiration date'),
-			'$feature_encrypt' => ((feature_enabled(local_user(),'content_encrypt')) ? true : false),
+			'$feature_encrypt' => ((feature_enabled(local_channel(),'content_encrypt')) ? true : false),
 			'$encrypt' => t('Encrypt text'),
 			'$cipher' => $cipher,
 
@@ -253,10 +260,10 @@ function mail_content(&$a) {
 
 		$plaintext = true;
 
-//		if( local_user() && feature_enabled(local_user(),'richtext') )
+//		if( local_channel() && feature_enabled(local_channel(),'richtext') )
 //			$plaintext = false;
 
-		$messages = private_messages_fetch_conversation(local_user(), argv(1), true);
+		$messages = private_messages_fetch_conversation(local_channel(), argv(1), true);
 
 		if(! $messages) {
 			info( t('Message not found.') . EOL);
@@ -276,7 +283,7 @@ function mail_content(&$a) {
 		$tpl = get_markup_template('msg-header.tpl');
 	
 		$a->page['htmlhead'] .= replace_macros($tpl, array(
-			'$nickname' => $channel['channel_addr'],
+			'$nickname' => $channel['channel_address'],
 			'$baseurl' => $a->get_baseurl(true),
 			'$editselect' => (($plaintext) ? 'none' : '/(profile-jot-text|prvmail-text)/'),
 			'$linkurl' => t('Please enter a link URL:'),
@@ -348,9 +355,9 @@ function mail_content(&$a) {
 			'$submit' => t('Submit'),
 			'$wait' => t('Please wait'),
 			'$defexpire' => '',
-			'$feature_expire' => ((feature_enabled(local_user(),'content_expire')) ? true : false),
+			'$feature_expire' => ((feature_enabled(local_channel(),'content_expire')) ? true : false),
 			'$expires' => t('Set expiration date'),
-			'$feature_encrypt' => ((feature_enabled(local_user(),'content_encrypt')) ? true : false),
+			'$feature_encrypt' => ((feature_enabled(local_channel(),'content_encrypt')) ? true : false),
 			'$encrypt' => t('Encrypt text'),
 			'$cipher' => $cipher,
 

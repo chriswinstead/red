@@ -108,7 +108,7 @@ if(! $a->install) {
 	if (! $navtabs_bgchover)
 		$navtabs_bgchover = "rgba(238,238,238,0.8)";
 	if (! $link_colour)
-		$link_colour = "#428BCA";
+		$link_colour = "#337AB7";
 	if (! $navaside_bghover)
 		$navaside_bghover = "#eee";
 	if (! $link_font_weight)
@@ -125,6 +125,8 @@ if(! $a->install) {
 		$item_colour = "rgba(238,238,238,0.8)";
 	if (! $comment_item_colour)
 		$comment_item_colour = "rgba(254,254,254,0.4)";
+	if (! $genericcontent_bgcolour)
+		$genericcontent_bgcolour = $comment_item_colour;
 	if (! $comment_border_colour)
 		$comment_border_colour = "rgba(238,238,238,0.8)";
 	if (! $toolicon_colour)
@@ -152,11 +154,11 @@ if(! $a->install) {
 	if (! $blockquote_bordercolour)
 		$blockquote_bordercolour = "#ccc";
 	if (! $code_borderc)
-		$code_borderc = "#444";
+		$code_borderc = "#ccc";
 	if (! $code_bgcolour)
-		$code_bgcolour = "#EEE";
+		$code_bgcolour = "#ccc";
 	if (! $code_txtcolour)
-		$code_txtcolour = "#444";
+		$code_txtcolour = "#000";
 	if (! $pre_borderc)
 		$pre_borderc = "#ccc";
 	if (! $pre_bgcolour)
@@ -224,7 +226,7 @@ if(! $a->install) {
 	if (! $input_linksubmit)
 		$input_linksubmit = "#0080FF";
 	if (! $input_border)
-		$input_border = "#666";
+		$input_border = "#ccc";
 	if (! $input_colourhover)
 		$input_colourhover = "#333";
 	if (! $input_decohover)
@@ -270,8 +272,10 @@ if(! $a->install) {
       $advperm_gradientcol = "#E8E8E8";
    if(! $cal_bgcolour)
 		$cal_bgcolour = "#FCF8E3";
+   if(! $chat_txtbgcol)
+		$chat_txtbgcol = "#EEE";
    if(! $fancybox_bgcolour)
-      $fancybox_bgcolour = "#FFF";
+      $fancybox_bgcolour = "#FFFFFF";
 	if (!$comment_padding)
 		$comment_padding="0px";	
 	if (!$comment_border_left)
@@ -331,6 +335,7 @@ $options = array (
 '$search_background' => $search_background,
 '$bgcolour' => $bgcolour,
 '$background_image' => $background_image,
+'$genericcontent_bgcolour' => $genericcontent_bgcolour,
 '$item_colour' => $item_colour,
 '$comment_item_colour' => $comment_item_colour,
 '$comment_border_colour' => $comment_border_colour,
@@ -406,6 +411,7 @@ $options = array (
 '$advperm_bordercol' => $advperm_bordercol,
 '$advperm_gradientcol' => $advperm_gradientcol,
 '$cal_bgcolour' => $cal_bgcolour,
+'$chat_txtbgcol' => $chat_txtbgcol,
 '$fancybox_bgcolour' => $fancybox_bgcolour,
 '$pmenu_top' => $pmenu_top,
 '$pmenu_reply' => $pmenu_reply,

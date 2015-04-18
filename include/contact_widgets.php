@@ -8,7 +8,7 @@ function findpeople_widget() {
 	$a = get_app();
 
 	if(get_config('system','invitation_only')) {
-		$x = get_pconfig(local_user(),'system','invites_remaining');
+		$x = get_pconfig(local_channel(),'system','invites_remaining');
 		if($x || is_site_admin()) {
 			$a->page['aside'] .= '<div class="side-link" id="side-invite-remain">' 
 			. sprintf( tt('%d invitation available','%d invitations available',$x), $x) 
@@ -16,7 +16,7 @@ function findpeople_widget() {
 		}
 	}
 
-	$advanced_search = ((local_user() && get_pconfig(local_user(),'feature','expert')) ? t('Advanced') : false);
+	$advanced_search = ((local_channel() && get_pconfig(local_channel(),'feature','expert')) ? t('Advanced') : false);
  
 	return replace_macros(get_markup_template('peoplefind.tpl'),array(
 		'$findpeople' => t('Find Channels'),
@@ -29,9 +29,8 @@ function findpeople_widget() {
 		'$random' => t('Random Profile'),
 		'$inv' => t('Invite Friends'),
 		'$advanced_search' => $advanced_search,
-		'$advanced_hint' => t('Exammple: name=fred and country=iceland'),
-		'$find_advanced' => t('Advanced Find'),
-		'$loggedin' => local_user()
+		'$advanced_hint' => "\r\n" . t('Advanced example: name=fred and country=iceland'),
+		'$loggedin' => local_channel()
 	));
 
 }
@@ -40,12 +39,12 @@ function findpeople_widget() {
 function fileas_widget($baseurl,$selected = '') {
 	$a = get_app();
 
-	if(! local_user())
+	if(! local_channel())
 		return '';
 
 	$terms = array();
 	$r = q("select distinct(term) from term where uid = %d and type = %d order by term asc",
-		intval(local_user()),
+		intval(local_channel()),
 		intval(TERM_FILE)
 	);
 	if(! $r)
@@ -106,7 +105,7 @@ function common_friends_visitor_widget($profile_uid) {
 
 	$a = get_app();
 
-	if(local_user() == $profile_uid)
+	if(local_channel() == $profile_uid)
 		return;
 
 	$observer_hash = get_observer_hash();

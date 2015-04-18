@@ -51,7 +51,7 @@ function send_message($uid = 0, $recipient='', $body='', $subject='', $replyto='
 
 	if(strlen($replyto)) {
 		$r = q("select convid from mail where channel_id = %d and ( mid = '%s' or parent_mid = '%s' ) limit 1",
-			intval(local_user()),
+			intval(local_channel()),
 			dbesc($replyto),
 			dbesc($replyto)
 		);
@@ -76,7 +76,7 @@ function send_message($uid = 0, $recipient='', $body='', $subject='', $replyto='
 		$handles = $recip_handle . ';' . $sender_handle;
 
 		$r = q("insert into conv (uid,guid,creator,created,updated,subject,recips) values(%d, '%s', '%s', '%s', '%s', '%s', '%s') ",
-			intval(local_user()),
+			intval(local_channel()),
 			dbesc($conv_guid),
 			dbesc($sender_handle),
 			dbesc(datetime_convert()),
@@ -87,7 +87,7 @@ function send_message($uid = 0, $recipient='', $body='', $subject='', $replyto='
 
 		$r = q("select * from conv where guid = '%s' and uid = %d limit 1",
 			dbesc($conv_guid),
-			intval(local_user())
+			intval(local_channel())
 		);
 		if($r)
 			$convid = $r[0]['id'];
@@ -185,7 +185,7 @@ function send_message($uid = 0, $recipient='', $body='', $subject='', $replyto='
 		dbesc($mid),
 		dbesc($replyto),
 		dbesc(datetime_convert()),
-		dbesc($expires)
+		dbescdate($expires)
 	);
 
 	// verify the save
@@ -243,7 +243,7 @@ function private_messages_list($uid, $mailbox = '', $start = 0, $numitems = 0) {
 	$limit = '';
 
 	if($numitems)
-		$limit = " LIMIT " . intval($start) . ", " . intval($numitems);
+		$limit = " LIMIT " . intval($numitems) . " OFFSET " . intval($start);
 		
 	if($mailbox !== '') {
 		$x = q("select channel_hash from channel where channel_id = %d limit 1",
@@ -261,7 +261,7 @@ function private_messages_list($uid, $mailbox = '', $start = 0, $numitems = 0) {
 	// inside this function or having some preset sorts, but don't wish to limit app developers. 
 		
 	$r = q("SELECT * from mail WHERE channel_id = %d $where order by created desc $limit",
-		intval(local_user())
+		intval(local_channel())
 	);
 	if(! $r) {
 		return array();
@@ -332,7 +332,7 @@ function private_messages_fetch_message($channel_id, $messageitem_id, $updatesee
 	}
 
 	if($updateseen) {
-		$r = q("UPDATE `mail` SET mail_flags = (mail_flags ^ %d) where not (mail_flags & %d) and id = %d AND channel_id = %d",
+		$r = q("UPDATE `mail` SET mail_flags = (mail_flags | %d) where not (mail_flags & %d)>0 and id = %d AND channel_id = %d",
 			intval(MAIL_SEEN),
 			intval(MAIL_SEEN),
 			dbesc($messageitem_id),
@@ -363,7 +363,7 @@ function private_messages_drop($channel_id, $messageitem_id, $drop_conversation 
 		}
 	}
 	else {
-		$r = q("DELETE FROM mail WHERE id = %d AND channel_id = %d LIMIT 1",
+		$r = q("DELETE FROM mail WHERE id = %d AND channel_id = %d",
 			intval($messageitem_id),
 			intval($channel_id)
 		);
@@ -421,7 +421,7 @@ function private_messages_fetch_conversation($channel_id, $messageitem_id, $upda
 
 
 	if($updateseen) {
-		$r = q("UPDATE `mail` SET mail_flags = (mail_flags ^ %d) where not (mail_flags & %d) and parent_mid = '%s' AND channel_id = %d",
+		$r = q("UPDATE `mail` SET mail_flags = (mail_flags | %d) where not (mail_flags & %d)>0 and parent_mid = '%s' AND channel_id = %d",
 			intval(MAIL_SEEN),
 			intval(MAIL_SEEN),
 			dbesc($r[0]['parent_mid']),

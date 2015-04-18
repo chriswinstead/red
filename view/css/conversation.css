@@ -1,8 +1,14 @@
+/* common */
+
+code {
+	font-family: Courier, monospace;
+	display: block;
+	overflow: auto;
+}
+
 /* jot */
 
-#jot-title,
-#jot-category,
-#jot-pagetitle {
+.jothidden input {
 	border: 0px;
 	margin: 0px;
 	padding: 8px;
@@ -120,7 +126,7 @@ a.wall-item-name-link {
 }
 
 .wall-item-content img {
-    max-width: 95%;
+	max-width: 100%;
 }
 
 .wall-item-title h3 {
@@ -189,6 +195,10 @@ a.wall-item-name-link {
 	clear: both;
 }
 
+.shared_header {
+	margin-bottom: 20px;
+}
+
 /* comment_item */
 
 .comment-edit-text-empty, .comment-edit-text-full {
@@ -249,4 +259,14 @@ a.wall-item-name-link {
 .dropdown-menu > li > a.disabled {
 	pointer-events: none;
 	cursor: default;
+}
+
+.item-verified {
+	color: darkgreen;
+	font-size: 1em !important;
+}
+
+.item-forged {
+	color: #FF0000;
+	font-size: 1em !important;
 }

@@ -7,11 +7,20 @@
 		$.get(
 			'{{$baseurl}}/events/?id='+eventid,
 			function(data){
-				$.colorbox({ html: data });
+				$.colorbox({ scrolling: false, html: data, onComplete: function() { $.colorbox.resize(); }});
 			}
 		);			
 	}
 	
+	function doEventPreview() {
+		$('#event-edit-preview').val(1);
+		$.post('events',$('#event-edit-form').serialize(), function(data) {
+			$.colorbox({ html: data });
+		});
+		$('#event-edit-preview').val(0);
+	}
+
+
 	$(document).ready(function() {
 		$('#events-calendar').fullCalendar({
 			events: '{{$baseurl}}/events/json/',
@@ -24,10 +33,16 @@
 			eventClick: function(calEvent, jsEvent, view) {
 				showEvent(calEvent.id);
 			},
-			
+			loading: function(isLoading, view) {
+				if(!isLoading) {
+					$('td.fc-day').dblclick(function() { window.location.href='/events/new?start='+$(this).data('date'); });
+				}
+			},
+
 			eventRender: function(event, element, view) {
 				//console.log(view.name);
 				if (event.item['author']['xchan_name']==null) return;
+
 				switch(view.name){
 					case "month":
 					element.find(".fc-event-title").html(
@@ -112,13 +127,13 @@
 
 	$(document).ready(function() { 
 
-		$('#event-share-checkbox').change(function() {
+		$('#id_share').change(function() {
 
-			if ($('#event-share-checkbox').is(':checked')) { 
-				$('#acl-wrapper').show();
+			if ($('#id_share').is(':checked')) { 
+				$('#event-permissions-button').show();
 			}
 			else {
-				$('#acl-wrapper').hide();
+				$('#event-permissions-button').hide();
 			}
 		}).trigger('change');
 

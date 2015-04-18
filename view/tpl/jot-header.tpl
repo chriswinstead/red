@@ -10,7 +10,10 @@ function initEditor(cb){
 		if(plaintext == 'none') {
 			$("#profile-jot-text-loading").spin(false).hide();
 			$("#profile-jot-text").css({ 'height': 200, 'color': '#000' });
-			$("#profile-jot-text").contact_autocomplete(baseurl+"/acl");
+			if(typeof channelId === 'undefined')
+				$("#profile-jot-text").editor_autocomplete(baseurl+"/acl");
+			else
+				$("#profile-jot-text").editor_autocomplete(baseurl+"/acl",[channelId]); // Also gives suggestions from current channel's connections
 			editor = true;
 			  $("a#jot-perms-icon").colorbox({ 
 				  'inline' : true, 
@@ -306,10 +309,20 @@ function enableOnUser(){
 		timer = setTimeout(NavUpdate,1000);
 	}
 
+	function toggleVoting() {
+		if($('#jot-consensus').val() > 0) {
+			$('#jot-consensus').val(0);
+			$('#profile-voting').removeClass('icon-check').addClass('icon-check-empty');
+		}
+		else {
+			$('#jot-consensus').val(1);
+			$('#profile-voting').removeClass('icon-check-empty').addClass('icon-check');
+		}
+	}
 
 	function jotClearLocation() {
 		$('#jot-coord').val('');
-		$('#profile-nolocation-wrapper').hide();
+		$('#profile-nolocation-wrapper').attr('disabled', true);
 	}
 
 

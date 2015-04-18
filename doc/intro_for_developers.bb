@@ -20,6 +20,8 @@
 
 [mod] Controller modules based on URL pathname (e.g. #^[url=http://sitename/foo]http://sitename/foo[/url] loads mod/foo.php)
 
+[mod/site/] site-specific mod overrides, excluded from git
+
 [util] translation tools, main English string database and other miscellaneous utilities
 
 [version.inc] contains current version (auto-updated via cron for the master repository and distributed via git)
@@ -109,4 +111,4 @@ At that point, if you need to add javascript or css files, add them to /js or /c
 
 Now you'll probably want to alter a template. These can be found in in /view/tpl OR view//tpl. All you should have to do is copy whatever you want to tweak from the first place to your theme's own tpl directory.
 
-Return to the [url=[baseurl]/help/main]Main documentation page[/url]
+#include doc/macros/main_footer.bb;

@@ -3,10 +3,10 @@
 function profile_activity($changed, $value) {
 	$a = get_app();
 
-	if(! local_user() || ! is_array($changed) || ! count($changed))
+	if(! local_channel() || ! is_array($changed) || ! count($changed))
 		return;
 
-	if(! get_pconfig(local_user(),'system','post_profilechange'))
+	if(! get_pconfig(local_channel(),'system','post_profilechange'))
 		return;
 
 	require_once('include/items.php');
@@ -18,7 +18,7 @@ function profile_activity($changed, $value) {
 
 	$arr = array();
 	$arr['mid']         = $arr['parent_mid'] = item_message_id();
-	$arr['uid']         = local_user();
+	$arr['uid']         = local_channel();
 	$arr['aid']         = $self['channel_account_id'];
 	$arr['owner_xchan'] = $arr['author_xchan'] = $self['xchan_hash'];
 	$arr['item_flags']  = ITEM_WALL|ITEM_ORIGIN|ITEM_THREAD_TOP;
@@ -48,7 +48,11 @@ function profile_activity($changed, $value) {
 
 	if($t == 1 && strlen($value)) {
 		// if it's a url, the HTML quotes will mess it up, so link it and don't try and zidify it because we don't know what it points to.
-		$value = linkify($value); 
+ 		$value = preg_replace_callback("/([^\]\='".'"'."]|^|\#\^)(https?\:\/\/[a-zA-Z0-9\:\/\-\?\&\;\.\=\@\_\~\#\%\$\!\+\,]+)/ism", 'red_zrl_callback', $value);
+		// take out the bookmark indicator
+		if(substr($value,0,2) === '#^')
+			$value = str_replace('#^','',$value);
+
 		$message = sprintf( t('%1$s changed %2$s to &ldquo;%3$s&rdquo;'), $A, $changes, $value);
 		$message .= "\n\n" . sprintf( t('Visit %1$s\'s %2$s'), $A, $prof);
 	}

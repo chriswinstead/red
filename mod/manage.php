@@ -17,7 +17,7 @@ function manage_content(&$a) {
 			intval(get_account_id())
 		);
 		if($r) {
-			q("update account set account_default_channel = %d where account_id = %d limit 1",
+			q("update account set account_default_channel = %d where account_id = %d",
 				intval($change_channel),
 				intval(get_account_id())
 			);
@@ -28,36 +28,36 @@ function manage_content(&$a) {
 	if($change_channel) {
 		$r = change_channel($change_channel);
 
-		if($r && $r['channel_startpage'])
-			goaway(z_root() . '/' . $r['channel_startpage']);
+		if((argc() > 2) && !(argv(2) === 'default')) {
+			goaway(z_root() . '/' . implode('/',array_slice($a->argv,2))); // Go to whatever is after /manage/, but with the new channel
+		}
+		else {
+			if($r && $r['channel_startpage'])
+				goaway(z_root() . '/' . $r['channel_startpage']); // If nothing extra is specified, go to the default page
+		}
 		goaway(z_root());
 	}
 
 	$channels = null;
 
-	if(local_user()) {
-		$r = q("select channel.*, xchan.* from channel left join xchan on channel.channel_hash = xchan.xchan_hash where channel.channel_account_id = %d and not ( channel_pageflags & %d ) order by channel_name ",
+	if(local_channel()) {
+		$r = q("select channel.*, xchan.* from channel left join xchan on channel.channel_hash = xchan.xchan_hash where channel.channel_account_id = %d and not ( channel_pageflags & %d )>0 order by channel_name ",
 			intval(get_account_id()),
 			intval(PAGE_REMOVED)
 		);
 
-		$selected_channel = null;
 		$account = get_app()->get_account();
 
 		if($r && count($r)) {
 			$channels = $r;
 			for($x = 0; $x < count($channels); $x ++) {
 				$channels[$x]['link'] = 'manage/' . intval($channels[$x]['channel_id']);
-				if($channels[$x]['channel_id'] == local_user())
-					$selected_channel = $channels[$x];
 				$channels[$x]['default'] = (($channels[$x]['channel_id'] == $account['account_default_channel']) ? "1" : ''); 
 				$channels[$x]['default_links'] = '1';
 
 
 				$c = q("SELECT id, item_restrict, item_flags FROM item
-					WHERE (item_restrict = %d) and ( item_flags & %d ) and uid = %d",
-					intval(ITEM_VISIBLE),
-					intval(ITEM_UNSEEN),
+					WHERE item_restrict = 0 and item_unseen = 1 and uid = %d",
 					intval($channels[$x]['channel_id'])
 				);
 
@@ -71,7 +71,7 @@ function manage_content(&$a) {
 				}
 
 
-				$intr = q("SELECT COUNT(abook.abook_id) AS total FROM abook left join xchan on abook.abook_xchan = xchan.xchan_hash where abook_channel = %d and (abook_flags & %d) and not ((abook_flags & %d) or (xchan_flags & %d))",
+				$intr = q("SELECT COUNT(abook.abook_id) AS total FROM abook left join xchan on abook.abook_xchan = xchan.xchan_hash where abook_channel = %d and (abook_flags & %d)>0 and not ((abook_flags & %d)>0 or (xchan_flags & %d)>0)",
 					intval($channels[$x]['channel_id']),
 					intval(ABOOK_FLAG_PENDING),
 					intval(ABOOK_FLAG_SELF|ABOOK_FLAG_IGNORED),
@@ -82,7 +82,7 @@ function manage_content(&$a) {
 					$channels[$x]['intros'] = intval($intr[0]['total']);
 
 
-				$mails = q("SELECT count(id) as total from mail WHERE channel_id = %d AND not (mail_flags & %d) and from_xchan != '%s' ",
+				$mails = q("SELECT count(id) as total from mail WHERE channel_id = %d AND not (mail_flags & %d)>0 and from_xchan != '%s' ",
 					intval($channels[$x]['channel_id']),
 					intval(MAIL_SEEN),		
 					dbesc($channels[$x]['channel_hash'])
@@ -127,11 +127,11 @@ function manage_content(&$a) {
 			}
 		}
 		
-	    $r = q("select count(channel_id) as total from channel where channel_account_id = %d and not ( channel_pageflags & %d )",
+	    $r = q("select count(channel_id) as total from channel where channel_account_id = %d and not ( channel_pageflags & %d )>0",
 			intval(get_account_id()),
 			intval(PAGE_REMOVED)
 		);
-		$limit = service_class_fetch(local_user(),'total_identities');
+		$limit = account_service_class_fetch(get_account_id(),'total_identities');
 		if($limit !== false) {
 			$channel_usage_message = sprintf( t("You have created %1$.0f of %2$.0f allowed channels."), $r[0]['total'], $limit);
 		}
@@ -147,12 +147,14 @@ function manage_content(&$a) {
 	$o = replace_macros(get_markup_template('channels.tpl'), array(
 		'$header'           => t('Channel Manager'),
 		'$msg_selected'     => t('Current Channel'),
-		'$selected'         => $selected_channel,
-		'$desc'             => t('Attach to one of your channels by selecting it.'),
+		'$selected'         => local_channel(),
+		'$desc'             => t('Switch to one of your channels by selecting it.'),
 		'$msg_default'      => t('Default Channel'),
 		'$msg_make_default' => t('Make Default'),
 		'$links'            => $links,
 		'$all_channels'     => $channels,
+		'$mail_format'        => t('%d new messages'),
+		'$intros_format'        => t('%d new introductions'),
 		'$channel_usage_message' => $channel_usage_message,
 	));
 

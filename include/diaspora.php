@@ -15,8 +15,14 @@ function diaspora_dispatch_public($msg) {
 		return;
 	}
 
-	// find everybody following or allowing this author
+	$sys_disabled = true;
 
+	if(! get_config('system','disable_discover_tab')) {
+		$sys_disabled = get_config('system','disable_diaspora_discover_tab');
+	}
+	$sys = (($sys_disabled) ? null : get_sys_channel());
+
+	// find everybody following or allowing this author
 
 	$r = q("SELECT * from channel where channel_id in ( SELECT abook_channel from abook left join xchan on abook_xchan = xchan_hash WHERE xchan_network like '%%diaspora%%' and xchan_addr = '%s' )",
 		dbesc($msg['author'])
@@ -30,15 +36,26 @@ function diaspora_dispatch_public($msg) {
 			diaspora_dispatch($rr,$msg);
 		}
 	}
-	else
-		logger('diaspora_public: no subscribers');
+	else {
+		if(! $sys)
+			logger('diaspora_public: no subscribers');
+	}
+
+	if($sys) {
+		$sys['system'] = true;
+		logger('diaspora_public: delivering to sys.');
+		diaspora_dispatch($sys,$msg);
+	}
 }
 
 
 
-function diaspora_dispatch($importer,$msg,$attempt=1) {
+function diaspora_dispatch($importer,$msg) {
 
 	$ret = 0;
+
+	if(! array_key_exists('system',$importer))
+		$importer['system'] = false;
 
 	$enabled = intval(get_config('system','diaspora_enabled'));
 	if(! $enabled) {
@@ -58,7 +75,7 @@ function diaspora_dispatch($importer,$msg,$attempt=1) {
 
 	$xmlbase = $parsed_xml->post;
 
-	logger('diaspora_dispatch: ' . print_r($xmlbase,true), LOGGER_DATA);
+//	logger('diaspora_dispatch: ' . print_r($xmlbase,true), LOGGER_DATA);
 
 
 	if($xmlbase->request) {
@@ -92,7 +109,7 @@ function diaspora_dispatch($importer,$msg,$attempt=1) {
 		$ret = diaspora_signed_retraction($importer,$xmlbase->relayable_retraction,$msg);
 	}
 	elseif($xmlbase->photo) {
-		$ret = diaspora_photo($importer,$xmlbase->photo,$msg,$attempt);
+		$ret = diaspora_photo($importer,$xmlbase->photo,$msg);
 	}
 	elseif($xmlbase->conversation) {
 		$ret = diaspora_conversation($importer,$xmlbase->conversation,$msg);
@@ -259,8 +276,6 @@ function diaspora_process_outbound($arr) {
 }
 
 
-
-
 function diaspora_handle_from_contact($contact_hash) {
 
 	logger("diaspora_handle_from_contact: contact id is " . $contact_hash, LOGGER_DEBUG);
@@ -278,11 +293,21 @@ function diaspora_get_contact_by_handle($uid,$handle) {
 
 	if(diaspora_is_blacklisted($handle))
 		return false;
+	require_once('include/identity.php');
 
-	$r = q("SELECT * FROM abook left join xchan on xchan_hash = abook_xchan where xchan_addr = '%s' and abook_channel = %d limit 1",
-		dbesc($handle),
-		intval($uid)
-	);
+	$sys = get_sys_channel();
+	if(($sys) && ($sys['channel_id'] == $uid)) {
+		$r = q("SELECT * FROM xchan where xchan_addr = '%s' limit 1",
+			dbesc($handle)
+		);
+	}
+	else {
+		$r = q("SELECT * FROM abook left join xchan on xchan_hash = abook_xchan where xchan_addr = '%s' and abook_channel = %d limit 1",
+			dbesc($handle),
+			intval($uid)
+		);
+	}
+
 	return (($r) ? $r[0] : false);
 }
 
@@ -657,7 +682,7 @@ function diaspora_request($importer,$xml) {
 
 		$newperms = PERMS_R_STREAM|PERMS_R_PROFILE|PERMS_R_PHOTOS|PERMS_R_ABOOK|PERMS_W_STREAM|PERMS_W_COMMENT|PERMS_W_MAIL|PERMS_W_CHAT|PERMS_R_STORAGE|PERMS_R_PAGES;
 
-		$r = q("update abook set abook_their_perms = %d where abook_id = %d and abook_channel = %d limit 1",
+		$r = q("update abook set abook_their_perms = %d where abook_id = %d and abook_channel = %d",
 			intval($newperms),
 			intval($contact['abook_id']),
 			intval($importer['channel_id'])
@@ -673,16 +698,15 @@ function diaspora_request($importer,$xml) {
 		return;
 	}
 
-	$default_perms = 0;
-	// look for default permissions to apply in return - e.g. auto-friend
-	$z = q("select * from abook where abook_channel = %d and (abook_flags & %d) limit 1",
-		intval($importer['channel_id']),
-		intval(ABOOK_FLAG_SELF)
-	);
-
-	if($z)
-		$default_perms = intval($z[0]['abook_my_perms']);
-
+	$role = get_pconfig($channel['channel_id'],'system','permissions_role');
+	if($role) {
+		$x = get_role_perms($role);
+		if($x['perms_auto'])
+		$default_perms = $x['perms_accept'];
+	}
+	if(! $default_perms)
+		$default_perms = intval(get_pconfig($importer['channel_id'],'system','autoperms'));
+				
 	$their_perms = PERMS_R_STREAM|PERMS_R_PROFILE|PERMS_R_PHOTOS|PERMS_R_ABOOK|PERMS_W_STREAM|PERMS_W_COMMENT|PERMS_W_MAIL|PERMS_W_CHAT|PERMS_R_STORAGE|PERMS_R_PAGES;
 
 	$r = q("insert into abook ( abook_account, abook_channel, abook_xchan, abook_my_perms, abook_their_perms, abook_closeness, abook_rating, abook_created, abook_updated, abook_connected, abook_dob, abook_flags) values ( %d, %d, '%s', %d, %d, %d, %d, '%s', '%s', '%s', '%s', %d )",
@@ -748,7 +772,6 @@ function diaspora_request($importer,$xml) {
 
 
 
-
 function diaspora_post($importer,$xml,$msg) {
 
 	$a = get_app();
@@ -776,7 +799,7 @@ function diaspora_post($importer,$xml,$msg) {
 	}
 
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream'))) {
 		logger('diaspora_post: Ignoring this author.');
 		return 202;
 	}
@@ -804,6 +827,12 @@ function diaspora_post($importer,$xml,$msg) {
 		$body = scale_external_images($body);
 	}
 
+	$maxlen = get_max_import_size();
+
+	if($maxlen && mb_strlen($body) > $maxlen) {
+		$body = mb_substr($body,0,$maxlen,'UTF-8');
+		logger('message length exceeds max_import_size: truncated');
+	}
 
 //WTF? FIXME
 	// Add OEmbed and other information to the body
@@ -874,8 +903,8 @@ function diaspora_post($importer,$xml,$msg) {
 	}
 
 
-	// this won't work for Friendica or Redmatrix but it's probably the best we can do.
-	$plink = 'https://'.substr($diaspora_handle,strpos($diaspora_handle,'@')+1).'/posts/'.$guid;
+	$plink = service_plink($contact,$guid);
+
 
 	$datarray['uid'] = $importer['channel_id'];
 
@@ -894,8 +923,8 @@ function diaspora_post($importer,$xml,$msg) {
 
 	$datarray['app']  = $app;
 
-	$datarray['item_flags'] = ITEM_UNSEEN|ITEM_THREAD_TOP;
-
+	$datarray['item_flags'] = ITEM_THREAD_TOP;
+	$datarray['item_unseen'] = 1;
 
 	$result = item_store($datarray);
 	return;
@@ -927,9 +956,14 @@ function get_diaspora_reshare_xml($url,$recurse = 0) {
 
 	// see if it's a reshare of a reshare
 
-	if($source_xml->root_diaspora_id && $source_xml->root_guid && $recurse < 15) {
-		$orig_author = notags(unxmlify($source_xml->root_diaspora_id));
-		$orig_guid = notags(unxmlify($source_xml->root_guid));
+	if($source_xml->post->reshare)
+		$xml = $source_xml->post->reshare;
+	else 
+		return false;
+
+	if($xml->root_diaspora_id && $xml->root_guid && $recurse < 15) {
+		$orig_author = notags(unxmlify($xml->root_diaspora_id));
+		$orig_guid = notags(unxmlify($xml->root_guid));
 		$source_url = 'https://' . substr($orig_author,strpos($orig_author,'@')+1) . '/p/' . $orig_guid . '.xml';
 		$y = get_diaspora_reshare_xml($source_url,$recurse+1);
 		if($y)
@@ -958,7 +992,7 @@ function diaspora_reshare($importer,$xml,$msg) {
 	if(! $contact)
 		return;
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream'))) {
 		logger('diaspora_reshare: Ignoring this author: ' . $diaspora_handle . ' ' . print_r($xml,true));
 		return 202;
 	}
@@ -1011,6 +1045,14 @@ function diaspora_reshare($importer,$xml,$msg) {
 		$body = "";
 		//return;
 	}
+
+	$maxlen = get_max_import_size();
+
+	if($maxlen && mb_strlen($body) > $maxlen) {
+		$body = mb_substr($body,0,$maxlen,'UTF-8');
+		logger('message length exceeds max_import_size: truncated');
+	}
+
 
 	//if(! $body) {
 	//	logger('diaspora_reshare: empty body: source= ' . $x);
@@ -1087,8 +1129,7 @@ function diaspora_reshare($importer,$xml,$msg) {
 		}
 	}
 
-	// This won't work on redmatrix
-	$plink = 'https://'.substr($diaspora_handle,strpos($diaspora_handle,'@')+1).'/posts/'.$guid;
+	$plink = service_plink($contact,$guid);
 
 	$datarray['uid'] = $importer['channel_id'];
 	$datarray['mid'] = $datarray['parent_mid'] = $guid;
@@ -1125,7 +1166,7 @@ function diaspora_asphoto($importer,$xml,$msg) {
 	if(! $contact)
 		return;
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream'))) {
 		logger('diaspora_asphoto: Ignoring this author.');
 		return 202;
 	}
@@ -1169,7 +1210,7 @@ function diaspora_asphoto($importer,$xml,$msg) {
 		return;
 	}
 
-	$plink = 'https://'.substr($diaspora_handle,strpos($diaspora_handle,'@')+1).'/posts/'.$guid;
+	$plink = service_plink($contact,$guid);
 
 	$datarray = array();
 
@@ -1230,7 +1271,7 @@ function diaspora_comment($importer,$xml,$msg) {
 		return;
 	}
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'post_comments')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'post_comments'))) {
 		logger('diaspora_comment: Ignoring this author.');
 		return 202;
 	}
@@ -1327,6 +1368,15 @@ function diaspora_comment($importer,$xml,$msg) {
 
 	$body = diaspora2bb($text);
 
+
+	$maxlen = get_max_import_size();
+
+	if($maxlen && mb_strlen($body) > $maxlen) {
+		$body = mb_substr($body,0,$maxlen,'UTF-8');
+		logger('message length exceeds max_import_size: truncated');
+	}
+
+
 	$datarray = array();
 
 	$tags = get_tags($body);
@@ -1379,6 +1429,8 @@ function diaspora_comment($importer,$xml,$msg) {
 	$datarray['mid'] = $guid;
 	$datarray['parent_mid'] = $parent_item['mid'];
 
+	// set the route to that of the parent so downstream hubs won't reject it.
+	$datarray['route'] = $parent_item['route'];
 
 	// No timestamps for comments? OK, we'll the use current time.
 	$datarray['changed'] = $datarray['created'] = $datarray['edited'] = datetime_convert();
@@ -1389,7 +1441,12 @@ function diaspora_comment($importer,$xml,$msg) {
 
 	$datarray['body'] = $body;
 
-	$datarray['app']  = 'Diaspora';
+	if(strstr($person['xchan_network'],'friendica'))
+		$app = 'Friendica';
+	else
+		$app = 'Diaspora';
+
+	$datarray['app']  = $app;
 	
 	if(! $parent_author_signature) {
 		$key = get_config('system','pubkey');
@@ -1404,13 +1461,6 @@ function diaspora_comment($importer,$xml,$msg) {
 		$message_id = $result['item_id'];
 
 	if(($parent_item['item_flags'] & ITEM_ORIGIN) && (! $parent_author_signature)) {
-		q("insert into sign (`iid`,`signed_text`,`signature`,`signer`) values (%d,'%s','%s','%s') ",
-			intval($message_id),
-			dbesc($signed_data),
-			dbesc(base64_encode($author_signature)),
-			dbesc($diaspora_handle)
-		);
-
 		// if the message isn't already being relayed, notify others
 		// the existence of parent_author_signature means the parent_author or owner
 		// is already relaying.
@@ -1512,6 +1562,15 @@ function diaspora_conversation($importer,$xml,$msg) {
 		}
 
 		$body = diaspora2bb($msg_text);
+
+
+		$maxlen = get_max_import_size();
+
+		if($maxlen && mb_strlen($body) > $maxlen) {
+			$body = mb_substr($body,0,$maxlen,'UTF-8');
+			logger('message length exceeds max_import_size: truncated');
+		}
+
 
 		$author_signed_data = $msg_guid . ';' . $msg_parent_guid . ';' . $msg_text . ';' . unxmlify($mesg->created_at) . ';' . $msg_diaspora_handle . ';' . $msg_conversation_guid;
 
@@ -1650,6 +1709,17 @@ function diaspora_message($importer,$xml,$msg) {
 
 	$subject = $conversation['subject']; 
 	$body = diaspora2bb($msg_text);
+
+
+	$maxlen = get_max_import_size();
+
+	if($maxlen && mb_strlen($body) > $maxlen) {
+		$body = mb_substr($body,0,$maxlen,'UTF-8');
+		logger('message length exceeds max_import_size: truncated');
+	}
+
+
+
 	$message_id = $msg_diaspora_handle . ':' . $msg_guid;
 
 	$author_signed_data = $msg_guid . ';' . $msg_parent_guid . ';' . $msg_text . ';' . unxmlify($xml->created_at) . ';' . $msg_diaspora_handle . ';' . $msg_conversation_guid;
@@ -1707,7 +1777,7 @@ function diaspora_message($importer,$xml,$msg) {
 }
 
 
-function diaspora_photo($importer,$xml,$msg,$attempt=1) {
+function diaspora_photo($importer,$xml,$msg) {
 
 	$a = get_app();
 
@@ -1735,7 +1805,7 @@ function diaspora_photo($importer,$xml,$msg,$attempt=1) {
 		return;
 	}
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'send_stream'))) {
 		logger('diaspora_photo: Ignoring this author.');
 		return 202;
 	}
@@ -1789,12 +1859,12 @@ function diaspora_like($importer,$xml,$msg) {
 
 	$contact = diaspora_get_contact_by_handle($importer['channel_id'],$msg['author']);
 	if(! $contact) {
-		logger('diaspora_like: cannot find contact: ' . $msg['author']);
+		logger('diaspora_like: cannot find contact: ' . $msg['author'] . ' for channel ' . $importer['channel_name']);
 		return;
 	}
 
 
-	if(! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'post_comments')) {
+	if((! $importer['system']) && (! perm_is_allowed($importer['channel_id'],$contact['xchan_hash'],'post_comments'))) {
 		logger('diaspora_like: Ignoring this author.');
 		return 202;
 	}
@@ -1967,6 +2037,9 @@ function diaspora_like($importer,$xml,$msg) {
 	$arr['body'] =  sprintf( $bodyverb, $ulink, $alink, $plink );
 
 	$arr['app']  = 'Diaspora';
+
+	// set the route to that of the parent so downstream hubs won't reject it.
+	$arr['route'] = $parent_item['route'];
 
 	$arr['item_private'] = $parent_item['item_private'];
 	$arr['verb'] = $activity;
@@ -2153,8 +2226,7 @@ function diaspora_profile($importer,$xml,$msg) {
 	if($name === '') {
 		$name = $handle_parts[0];
 	}
-	
-	 
+		 
 	if( preg_match("|^https?://|", $image_url) === 0) {
 		$image_url = "http://" . $handle_parts[1] . $image_url;
 	}
@@ -2175,32 +2247,16 @@ function diaspora_profile($importer,$xml,$msg) {
 	if(substr($birthday,5) === substr($contact['bd'],5))
 		$birthday = $contact['bd'];
 
-	// TODO: update name on item['author-name'] if the name changed. See consume_feed()
-	// Not doing this currently because D* protocol is scheduled for revision soon. 
-
-/*	$r = q("UPDATE `contact` SET `name` = '%s', `name-date` = '%s', `photo` = '%s', `thumb` = '%s', `micro` = '%s', `avatar-date` = '%s' , `bd` = '%s' WHERE `id` = %d AND `uid` = %d",
+	$r = q("update xchan set xchan_name = '%s', xchan_name_date = '%s', xchan_photo_l = '%s', xchan_photo_m = '%s', xchan_photo_s = '%s', xchan_photo_mimetype = '%s' where xchan_hash = '%s' ",
 		dbesc($name),
 		dbesc(datetime_convert()),
 		dbesc($images[0]),
 		dbesc($images[1]),
 		dbesc($images[2]),
+		dbesc($images[3]),
 		dbesc(datetime_convert()),
-		dbesc($birthday),
-		intval($contact['id']),
-		intval($importer['channel_id'])
+		intval($contact['xchan_hash'])
 	); 
-*/
-/*	if($r) {
-		if($oldphotos) {
-			foreach($oldphotos as $ph) {
-				q("DELETE FROM `photo` WHERE `uid` = %d AND `contact-id` = %d AND `album` = 'Contact Photos' AND `resource-id` = '%s' ",
-					intval($importer['channel_id']),
-					intval($contact['id']),
-					dbesc($ph['resource-id'])
-				);
-			}
-		}
-	}	*/
 
 	return;
 
@@ -2259,7 +2315,7 @@ function diaspora_send_status($item,$owner,$contact,$public_batch = false) {
 	$images = array();
 
 	$title = $item['title'];
-	$body = bb2diaspora_itembody($item);
+	$body = bb2diaspora_itembody($item,true);
 
 /*
 	// We're trying to match Diaspora's split message/photo protocol but
@@ -2445,6 +2501,7 @@ function diaspora_send_followup($item,$owner,$contact,$public_batch = false) {
 		$parent = $p[0];
 	else
 		return;
+
 
 	if(($item['verb'] === ACTIVITY_LIKE) && ($parent['mid'] === $parent['parent_mid'])) {
 		$tpl = get_markup_template('diaspora_like.tpl');

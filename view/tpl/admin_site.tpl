@@ -1,15 +1,15 @@
 <script>
 	$(function(){
 		
-		$("#cnftheme").fancybox({
+		$("#cnftheme").colorbox({
 			width: 800,
-			autoDimensions: false,
-			onStart: function(){
+			onLoad: function(){
 				var theme = $("#id_theme :selected").val();
 				$("#cnftheme").attr('href',"{{$baseurl}}/admin/themes/"+theme);
 			}, 
 			onComplete: function(){
-				$("div#fancybox-content form").submit(function(e){
+				$(this).colorbox.resize(); 
+				$("#colorbox form").submit(function(e){
 					var url = $(this).attr('action');
 					// can't get .serialize() to work...
 					var data={};
@@ -34,7 +34,7 @@
 		});
 	});
 </script>
-<div id="adminpage" class="generic-content-wrapper">
+<div id="adminpage" class="generic-content-wrapper-styled">
 	<h1>{{$title}} - {{$page}}</h1>
 	
 	<form action="{{$baseurl}}/admin/site" method="post">
@@ -46,7 +46,6 @@
 	{{include file="field_select.tpl" field=$language}}
 	{{include file="field_select.tpl" field=$theme}}
     {{include file="field_select.tpl" field=$theme_mobile}}
-    {{include file="field_select.tpl" field=$theme_accessibility}}
     {{include file="field_checkbox.tpl" field=$no_login_on_homepage}}
 
 	
@@ -56,7 +55,8 @@
 	{{include file="field_input.tpl" field=$register_text}}
 	{{include file="field_select.tpl" field=$register_policy}}
 	{{include file="field_select.tpl" field=$access_policy}}
-	
+	{{include file="field_textarea.tpl" field=$allowed_email}}
+	{{include file="field_textarea.tpl" field=$not_allowed_email}}	
 	<div class="submit"><input type="submit" name="page_site" value="{{$submit}}" /></div>
 
 	<h3>{{$upload}}</h3>

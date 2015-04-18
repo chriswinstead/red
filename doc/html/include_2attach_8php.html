@@ -141,20 +141,30 @@ Functions</h2></td></tr>
 <tr class="memdesc:a5c0875eafb8c0f8a0620ff7a875a2221"><td class="mdescLeft">&#160;</td><td class="mdescRight">Changes permissions of a file.  <a href="#a5c0875eafb8c0f8a0620ff7a875a2221">More...</a><br/></td></tr>
 <tr class="separator:a5c0875eafb8c0f8a0620ff7a875a2221"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a70bd666e080c2af5a91f5d14c297b8cd"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a70bd666e080c2af5a91f5d14c297b8cd">attach_delete</a> ($channel_id, $resource)</td></tr>
-<tr class="memdesc:a70bd666e080c2af5a91f5d14c297b8cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a file/directory.  <a href="#a70bd666e080c2af5a91f5d14c297b8cd">More...</a><br/></td></tr>
+<tr class="memdesc:a70bd666e080c2af5a91f5d14c297b8cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a file/directory from a channel.  <a href="#a70bd666e080c2af5a91f5d14c297b8cd">More...</a><br/></td></tr>
 <tr class="separator:a70bd666e080c2af5a91f5d14c297b8cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6aa00ea010ea030110faefb75eafc1ce"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a6aa00ea010ea030110faefb75eafc1ce">get_cloudpath</a> ($arr)</td></tr>
-<tr class="memdesc:a6aa00ea010ea030110faefb75eafc1ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns path to file in cloud/.  <a href="#a6aa00ea010ea030110faefb75eafc1ce">More...</a><br/></td></tr>
+<tr class="memdesc:a6aa00ea010ea030110faefb75eafc1ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns path to file in cloud/. This function cannot be used with mod/dav as it always returns a path valid under mod/cloud.  <a href="#a6aa00ea010ea030110faefb75eafc1ce">More...</a><br/></td></tr>
 <tr class="separator:a6aa00ea010ea030110faefb75eafc1ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1d72ef7cb940f6868e3e2a841cadfe8f"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a1d72ef7cb940f6868e3e2a841cadfe8f">get_parent_cloudpath</a> ($channel_id, $channel_name, $attachHash)</td></tr>
-<tr class="memdesc:a1d72ef7cb940f6868e3e2a841cadfe8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns path to parent folder in cloud/.  <a href="#a1d72ef7cb940f6868e3e2a841cadfe8f">More...</a><br/></td></tr>
+<tr class="memdesc:a1d72ef7cb940f6868e3e2a841cadfe8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns path to parent folder in cloud/. This function cannot be used with mod/dav as it always returns a path valid under mod/cloud.  <a href="#a1d72ef7cb940f6868e3e2a841cadfe8f">More...</a><br/></td></tr>
 <tr class="separator:a1d72ef7cb940f6868e3e2a841cadfe8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a052f14487ff2ce72f62a09fac8d7e997"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a052f14487ff2ce72f62a09fac8d7e997">find_folder_hash_by_attach_hash</a> ($channel_id, $attachHash)</td></tr>
+<tr class="memdesc:a052f14487ff2ce72f62a09fac8d7e997"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the hash of an attachment's folder.  <a href="#a052f14487ff2ce72f62a09fac8d7e997">More...</a><br/></td></tr>
 <tr class="separator:a052f14487ff2ce72f62a09fac8d7e997"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4dbfd7e1cef52aa9ef52f4b88929fa86"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a4dbfd7e1cef52aa9ef52f4b88929fa86">find_filename_by_hash</a> ($channel_id, $attachHash)</td></tr>
+<tr class="memdesc:a4dbfd7e1cef52aa9ef52f4b88929fa86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the filename of an attachment in a given channel.  <a href="#a4dbfd7e1cef52aa9ef52f4b88929fa86">More...</a><br/></td></tr>
 <tr class="separator:a4dbfd7e1cef52aa9ef52f4b88929fa86"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5d484de2d19a93071571d6499a50ae34"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#a5d484de2d19a93071571d6499a50ae34">pipe_streams</a> ($in, $out)</td></tr>
 <tr class="separator:a5d484de2d19a93071571d6499a50ae34"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa23ba65e5bb732be71fdd27ccff7d46e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#aa23ba65e5bb732be71fdd27ccff7d46e">file_activity</a> ($channel_id, $object, $allow_cid, $allow_gid, $deny_cid, $deny_gid, $verb, $no_activity)</td></tr>
+<tr class="separator:aa23ba65e5bb732be71fdd27ccff7d46e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa784c064ae323710f4ef68771a4a38db"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#aa784c064ae323710f4ef68771a4a38db">get_file_activity_object</a> ($channel_id, $hash, $cloudpath)</td></tr>
+<tr class="separator:aa784c064ae323710f4ef68771a4a38db"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aabd15487fa0e5d2dc5c480f72d23b886"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#aabd15487fa0e5d2dc5c480f72d23b886">recursive_activity_recipients</a> ($allow_cid, $allow_gid, $deny_cid, $deny_gid, $folder_hash)</td></tr>
+<tr class="separator:aabd15487fa0e5d2dc5c480f72d23b886"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa166e1b48ac829a2366362e74fbcf355"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="include_2attach_8php.html#aa166e1b48ac829a2366362e74fbcf355">in_group</a> ($group_id)</td></tr>
+<tr class="separator:aa166e1b48ac829a2366362e74fbcf355"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>File/attach API with the potential for revision control. </p>
@@ -391,16 +401,18 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Delete a file/directory. </p>
+<p>Delete a file/directory from a channel. </p>
+<p>If the provided resource hash is from a directory it will delete everything recursively under this directory.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramtype">int</td><td class="paramname">$channel_id</td><td></td></tr>
-    <tr><td class="paramtype">string</td><td class="paramname">$resource</td><td>a hash to delete </td></tr>
+    <tr><td class="paramtype">int</td><td class="paramname">$channel_id</td><td>The id of the channel </td></tr>
+    <tr><td class="paramtype">string</td><td class="paramname">$resource</td><td>The hash to delete </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>void </dd></dl>
 
-<p>Referenced by <a class="el" href="classRedDirectory.html#a2d12d99d38a6a75fc9a830b2f7fc0bf0">RedDirectory\createFile()</a>, <a class="el" href="classRedFile.html#aef71c9eaac7052be7dc8602eb12171e7">RedFile\delete()</a>, <a class="el" href="filestorage_8php.html#a61bb1be78472555df4ce619f51014040">filestorage_content()</a>, and <a class="el" href="classRedFile.html#a41a49a583eb276b75626fcf97f4a699c">RedFile\put()</a>.</p>
+<p>Referenced by <a class="el" href="classRedMatrix_1_1RedDAV_1_1RedDirectory.html#a58e750256cdc2f0f79fbe8d5463ffefe">RedMatrix\RedDAV\RedDirectory\createFile()</a>, <a class="el" href="classRedMatrix_1_1RedDAV_1_1RedFile.html#ab7ab7ba81fab28eb02382cfdfd80ecfe">RedMatrix\RedDAV\RedFile\delete()</a>, <a class="el" href="filestorage_8php.html#a61bb1be78472555df4ce619f51014040">filestorage_content()</a>, and <a class="el" href="classRedMatrix_1_1RedDAV_1_1RedFile.html#a709ec1288d21ddf1353524435ab916f0">RedMatrix\RedDAV\RedFile\put()</a>.</p>
 
 </div>
 </div>
@@ -523,7 +535,7 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p>Referenced by <a class="el" href="classRedDirectory.html#a986936910f0216887a25e28916c166c7">RedDirectory\createDirectory()</a>.</p>
+<p>Referenced by <a class="el" href="classRedMatrix_1_1RedDAV_1_1RedDirectory.html#aca0e8d574ea66a0e210f571700663c62">RedMatrix\RedDAV\RedDirectory\createDirectory()</a>.</p>
 
 </div>
 </div>
@@ -576,6 +588,70 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a class="anchor" id="aa23ba65e5bb732be71fdd27ccff7d46e"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">file_activity </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$channel_id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$allow_cid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$allow_gid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$deny_cid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$deny_gid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$verb</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$no_activity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Referenced by <a class="el" href="include_2attach_8php.html#a70bd666e080c2af5a91f5d14c297b8cd">attach_delete()</a>, and <a class="el" href="filestorage_8php.html#ad3b64e3ece9831f9d3a9f00c0ae983cd">filestorage_post()</a>.</p>
+
+</div>
+</div>
 <a class="anchor" id="a4dbfd7e1cef52aa9ef52f4b88929fa86"></a>
 <div class="memitem">
 <div class="memproto">
@@ -599,6 +675,16 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Returns the filename of an attachment in a given channel. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramtype">mixed</td><td class="paramname">$channel_id</td><td>The id of the channel </td></tr>
+    <tr><td class="paramtype">mixed</td><td class="paramname">$attachHash</td><td>The hash of the attachment </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>string The filename of the attachment </dd></dl>
 
 <p>Referenced by <a class="el" href="include_2attach_8php.html#a1d72ef7cb940f6868e3e2a841cadfe8f">get_parent_cloudpath()</a>.</p>
 
@@ -628,6 +714,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Return the hash of an attachment's folder. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramtype">int</td><td class="paramname">$channel_id</td><td>The id of the channel </td></tr>
+    <tr><td class="paramtype">string</td><td class="paramname">$attachHash</td><td>The hash of the attachment </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>string </dd></dl>
+
 <p>Referenced by <a class="el" href="include_2attach_8php.html#a1d72ef7cb940f6868e3e2a841cadfe8f">get_parent_cloudpath()</a>.</p>
 
 </div>
@@ -646,16 +742,50 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Returns path to file in cloud/. </p>
+<p>Returns path to file in cloud/. This function cannot be used with mod/dav as it always returns a path valid under mod/cloud. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">$arr</td><td></td></tr>
+    <tr><td class="paramtype">array</td><td class="paramname">$arr,[uid]</td><td>int the channels uid $arr[folder] string $arr[filename]] string </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>string with the path the file to cloud/ </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>string path to the file in cloud/ </dd></dl>
 
 <p>Referenced by <a class="el" href="filestorage_8php.html#a61bb1be78472555df4ce619f51014040">filestorage_content()</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aa784c064ae323710f4ef68771a4a38db"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">get_file_activity_object </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$channel_id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$cloudpath</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Referenced by <a class="el" href="include_2attach_8php.html#a70bd666e080c2af5a91f5d14c297b8cd">attach_delete()</a>, and <a class="el" href="filestorage_8php.html#ad3b64e3ece9831f9d3a9f00c0ae983cd">filestorage_post()</a>.</p>
 
 </div>
 </div>
@@ -689,16 +819,36 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Returns path to parent folder in cloud/. </p>
+<p>Returns path to parent folder in cloud/. This function cannot be used with mod/dav as it always returns a path valid under mod/cloud. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">$arr</td><td></td></tr>
+    <tr><td class="paramtype">int</td><td class="paramname">$channel_id</td><td>The id of the channel </td></tr>
+    <tr><td class="paramtype">string</td><td class="paramname">$channel_name</td><td>The name of the channel </td></tr>
+    <tr><td class="paramtype">string</td><td class="paramname">$attachHash</td><td></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>string with the folder path </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>string with the full folder path </dd></dl>
 
-<p>Referenced by <a class="el" href="filestorage_8php.html#a61bb1be78472555df4ce619f51014040">filestorage_content()</a>, and <a class="el" href="filestorage_8php.html#ad3b64e3ece9831f9d3a9f00c0ae983cd">filestorage_post()</a>.</p>
+<p>Referenced by <a class="el" href="include_2attach_8php.html#a70bd666e080c2af5a91f5d14c297b8cd">attach_delete()</a>, <a class="el" href="filestorage_8php.html#a61bb1be78472555df4ce619f51014040">filestorage_content()</a>, and <a class="el" href="filestorage_8php.html#ad3b64e3ece9831f9d3a9f00c0ae983cd">filestorage_post()</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aa166e1b48ac829a2366362e74fbcf355"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">in_group </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$group_id</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Referenced by <a class="el" href="include_2attach_8php.html#aabd15487fa0e5d2dc5c480f72d23b886">recursive_activity_recipients()</a>.</p>
 
 </div>
 </div>
@@ -737,6 +887,52 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a class="anchor" id="aabd15487fa0e5d2dc5c480f72d23b886"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">recursive_activity_recipients </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$allow_cid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$allow_gid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$deny_cid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$deny_gid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>$folder_hash</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Referenced by <a class="el" href="include_2attach_8php.html#aa23ba65e5bb732be71fdd27ccff7d46e">file_activity()</a>.</p>
+
+</div>
+</div>
 <a class="anchor" id="a6fdd92775f31c07d2863e16e0026018a"></a>
 <div class="memitem">
 <div class="memproto">
@@ -761,7 +957,7 @@ Functions</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>string The mimetype according to a file ending. </dd></dl>
 
-<p>Referenced by <a class="el" href="include_2attach_8php.html#a84a8a64c4805e1525b42d4add464833f">attach_store()</a>, and <a class="el" href="classRedDirectory.html#a2d12d99d38a6a75fc9a830b2f7fc0bf0">RedDirectory\createFile()</a>.</p>
+<p>Referenced by <a class="el" href="include_2attach_8php.html#a84a8a64c4805e1525b42d4add464833f">attach_store()</a>, and <a class="el" href="classRedMatrix_1_1RedDAV_1_1RedDirectory.html#a58e750256cdc2f0f79fbe8d5463ffefe">RedMatrix\RedDAV\RedDirectory\createFile()</a>.</p>
 
 </div>
 </div>

@@ -33,7 +33,7 @@ class Conversation extends BaseObject {
 		$this->set_mode($mode);
 		$this->preview = $preview;
 		$this->prepared_item = $prepared_item;
-		$c = ((local_user()) ? get_pconfig(local_user(),'system','default_cipher') : '');
+		$c = ((local_channel()) ? get_pconfig(local_channel(),'system','default_cipher') : '');
 		if($c)
 			$this->cipher = $c;
 	}
@@ -57,7 +57,7 @@ class Conversation extends BaseObject {
 //					$this->writable = false;
 //				}
 //				else {
-					$this->profile_owner = local_user();
+					$this->profile_owner = local_channel();
 					$this->writable = true;
 //				}
 				break;
@@ -197,7 +197,7 @@ class Conversation extends BaseObject {
 	 *      _ The data requested on success
 	 *      _ false on failure
 	 */
-	public function get_template_data($alike, $dlike) {
+	public function get_template_data($conv_responses) {
 		$result = array();
 
 		foreach($this->threads as $item) {
@@ -206,7 +206,7 @@ class Conversation extends BaseObject {
 				$item_data = $this->prepared_item;
 			}
 			else {
-				$item_data = $item->get_template_data($alike, $dlike);
+				$item_data = $item->get_template_data($conv_responses);
 			}
 			if(!$item_data) {
 				logger('[ERROR] Conversation::get_template_data : Failed to get item template data ('. $item->get_id() .').', LOGGER_DEBUG);

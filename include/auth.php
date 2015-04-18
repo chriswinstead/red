@@ -41,6 +41,9 @@ function nuke_session() {
 /**
  * @brief Verify login credentials.
  *
+ * If system <i>authlog</i> is set a log entry will be added for failed login
+ * attempts.
+ *
  * @param string $email
  *  The email address to verify.
  * @param string $pass
@@ -88,14 +91,25 @@ function account_verify_password($email, $pass) {
 	if($record['account_flags'] & ACCOUNT_PENDING)
 		logger('Account is pending. account_flags = ' . $record['account_flags']);
 
-	// Also log failed logins to a separate auth log to reduce overhead for server side intrusion prevention
-	$authlog = get_config('system', 'authlog');
-	if ($authlog)
-		@file_put_contents($authlog, datetime_convert() . ':' . session_id() . ' ' . $error . "\n", FILE_APPEND);
+	log_failed_login($error);
 
 	return null;
 }
 
+/**
+ * @brief Log failed logins to a separate auth log.
+ *
+ * Can be used to reduce overhead for server side intrusion prevention, like
+ * parse the authlog file with something like fail2ban, OSSEC, etc.
+ *
+ * @param string $errormsg
+ *  Error message to display for failed login.
+ */
+function log_failed_login($errormsg) {
+	$authlog = get_config('system', 'authlog');
+	if ($authlog)
+		@file_put_contents($authlog, datetime_convert() . ':' . session_id() . ' ' . $errormsg . PHP_EOL, FILE_APPEND);
+}
 
 /**
  * Inline - not a function
@@ -110,7 +124,7 @@ if((isset($_SESSION)) && (x($_SESSION, 'authenticated')) &&
 
 	if(((x($_POST, 'auth-params')) && ($_POST['auth-params'] === 'logout')) || ($a->module === 'logout')) {
 		// process logout request
-		$args = array('channel_id' => local_user());
+		$args = array('channel_id' => local_channel());
 		call_hooks('logging_out', $args);
 		nuke_session();
 		info( t('Logged out.') . EOL);
@@ -123,7 +137,7 @@ if((isset($_SESSION)) && (x($_SESSION, 'authenticated')) &&
 		// if our authenticated guest is allowed to take control of the admin channel, make it so.
 		$admins = get_config('system', 'remote_admin');
 		if($admins && is_array($admins) && in_array($_SESSION['visitor_id'], $admins)) {
-			$x = q("select * from account where account_email = '%s' and account_email != '' and ( account_flags & %d ) limit 1",
+			$x = q("select * from account where account_email = '%s' and account_email != '' and ( account_flags & %d )>0 limit 1",
 				dbesc(get_config('system', 'admin_email')),
 				intval(ACCOUNT_ROLE_ADMIN)
 			);
@@ -269,7 +283,7 @@ else {
 				@file_put_contents($authlog, datetime_convert() . ':' . session_id() . ' ' . $error . "\n", FILE_APPEND);
 
 			notice( t('Login failed.') . EOL );
-			goaway(z_root());
+			goaway(z_root() . '/login');
 		}
 
 		// If the user specified to remember the authentication, then change the cookie

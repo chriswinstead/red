@@ -31,32 +31,72 @@ function find_upstream_directory($dirmode) {
 }
 
 function check_upstream_directory() {
+
 	/**
 	* Directories may come and go over time.  We will need to check that our 
 	* directory server is still valid occasionally, and reset to something that
 	* is if our directory has gone offline for any reason
 	*/
+
 	$directory = get_config('system','directory_server');
-	if ($directory) {
-		$r = q("select * from site where site_url = '%s' and (site_flags & %d) ",
-			dbesc($directory),
-			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY|DIRECTORY_MODE_STANDALONE)
-		);
-	}
-	// If we've got something, it's still a directory.  If we haven't, we need to reset and let find_upstream_directory() fix it
-		if (! $r) {
-			set_config('system','directory_server','');
+
+	// it's possible there is no directory server configured and the local hub is being used.
+	// If so, default to preserving the absence of a specific server setting.
+
+	$isadir = true; 
+
+	if($directory) {
+		$h = parse_url($directory);
+		if($h) {
+			$x = zot_finger('sys@' . $h['host']);
+			if($x['success']) {
+				$j = json_decode($x['body'],true);
+				if(array_key_exists('site',$j) && array_key_exists('directory_mode',$j['site'])) {
+					if($j['site']['directory_mode'] === 'normal') {
+						$isadir = false;
+					}
+				}
+			}
 		}
+	}
+
+	if(! $isadir)
+		set_config('system','directory_server','');
 	return;
 }
 	
 function dir_sort_links() {
+	// Build urls without order and pubforums so it's easy to tack on the changed value
+	// Probably there's an easier way to do this
+
+	$current_order = (($_REQUEST['order']) ? $_REQUEST['order'] : 'normal');
+	$url = 'directory?f=';
+
+	$tmp = array_merge($_GET,$_POST);
+	unset($tmp['order']);
+	unset($tmp['q']);
+	unset($tmp['f']);
+	$sorturl = $url . http_build_query($tmp);
+
+	$tmp = array_merge($_GET,$_POST);
+	unset($tmp['pubforums']);
+	unset($tmp['q']);
+	unset($tmp['f']);
+	$forumsurl = $url . http_build_query($tmp);
 
 	$o = replace_macros(get_markup_template('dir_sort_links.tpl'), array(
-		'$header' => t('Sort Options'),
+		'$header' => t('Directory Options'),
 		'$normal' => t('Alphabetic'),
 		'$reverse' => t('Reverse Alphabetic'),
-		'$date' => t('Newest to Oldest')
+		'$date' => t('Newest to Oldest'),
+		'$reversedate' => t('Oldest to Newest'),
+		'$pubforums' => t('Public Forums Only'),
+		'$pubforumsonly' => x($_REQUEST,'pubforums') ? $_REQUEST['pubforums'] : '',
+		'$sort' => t('Sort'),
+		'$selected_sort' => $current_order,
+		'$sorturl' => $sorturl,
+		'$forumsurl' => $forumsurl,
+
 	));
 	return $o;
 }
@@ -86,14 +126,14 @@ function sync_directories($dirmode) {
 
 	$realm = get_directory_realm();
 	if($realm == DIRECTORY_REALM) {
-		$r = q("select * from site where (site_flags & %d) and site_url != '%s' and ( site_realm = '%s' or site_realm = '') ",
+		$r = q("select * from site where (site_flags & %d) > 0 and site_url != '%s' and ( site_realm = '%s' or site_realm = '') ",
 			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
 			dbesc(z_root()),
 			dbesc($realm)
 		);
 	}
 	else {
-		$r = q("select * from site where (site_flags & %d) and site_url != '%s' and site_realm like '%s' ",
+		$r = q("select * from site where (site_flags & %d) > 0 and site_url != '%s' and site_realm like '%s' ",
 			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
 			dbesc(z_root()),
 			dbesc(protect_sprintf('%' . $realm . '%'))
@@ -120,7 +160,7 @@ function sync_directories($dirmode) {
 			dbesc($r[0]['site_realm'])
 		);
 
-		$r = q("select * from site where (site_flags & %d) and site_url != '%s'",
+		$r = q("select * from site where (site_flags & %d) > 0 and site_url != '%s'",
 			intval(DIRECTORY_MODE_PRIMARY|DIRECTORY_MODE_SECONDARY),
 			dbesc(z_root())
 		);
@@ -146,7 +186,7 @@ function sync_directories($dirmode) {
 		if((! $j['transactions']) || (! is_array($j['transactions'])))
 			continue;
 
-		q("update site set site_sync = '%s' where site_url = '%s' limit 1",
+		q("update site set site_sync = '%s' where site_url = '%s'",
 			dbesc(datetime_convert()),
 			dbesc($rr['site_url'])
 		);
@@ -174,6 +214,49 @@ function sync_directories($dirmode) {
 					intval($ud_flags),
 					dbesc($t['address'])
 				);
+			}
+		}
+		if(count($j['ratings'])) {
+			foreach($j['ratings'] as $rr) {		
+				$x = q("select * from xlink where xlink_xchan = '%s' and xlink_link = '%s' and xlink_static = 1",
+					dbesc($rr['channel']),
+					dbesc($rr['target'])
+				);
+				if($x && $x[0]['xlink_updated'] >= $rr['edited'])
+					continue;
+				$y = q("select xchan_pubkey from xchan where xchan_hash = '%s' limit 1",
+					dbesc($rr['channel'])
+				);
+				if(! $y) {
+					logger('key unavailable on this site for ' . $rr['channel']);
+					continue;
+				}
+				if(! rsa_verify($rr['target'] . '.' . $rr['rating'] . '.' . $rr['rating_text'], base64url_decode($rr['signature']),$y[0]['xchan_pubkey'])) {
+			        logger('failed to verify rating');
+					continue;
+				}
+
+				if($x) {
+					$z = q("update xlink set xlink_rating = %d, xlink_rating_text = '%s', xlink_sig = '%s', xlink_updated = '%s' where xlink_id = %d",
+						intval($rr['rating']),
+						dbesc($rr['rating_text']),
+						dbesc($rr['signature']),
+						dbesc(datetime_convert()),
+						intval($x[0]['xlink_id'])
+	        		);
+			        logger('rating updated');
+    			}
+    			else {
+        			$z = q("insert into xlink ( xlink_xchan, xlink_link, xlink_rating, xlink_rating_text, xlink_sig, xlink_updated, xlink_static ) values( '%s', '%s', %d, '%s', '%s', '%s', 1 ) ",
+						dbesc($rr['channel']),
+						dbesc($rr['target']),
+						intval($rr['rating']),
+						dbesc($rr['rating_text']),
+						dbesc($rr['signature']),
+						dbesc(datetime_convert())
+					);
+					logger('rating created');
+				}
 			}
 		}
 	}
@@ -212,7 +295,7 @@ function update_directory_entry($ud) {
 
 function local_dir_update($uid,$force) {
 
-	logger('local_dir_update', LOGGER_DEBUG);
+	logger('local_dir_update: uid: ' . $uid, LOGGER_DEBUG);
 
 	$p = q("select channel.channel_hash, channel_address, channel_timezone, profile.* from profile left join channel on channel_id = uid where uid = %d and is_default = 1",
 		intval($uid)
@@ -267,7 +350,7 @@ function local_dir_update($uid,$force) {
 		
 		if($new_flags != $r[0]['xchan_flags']) {			
 
-			$r = q("update xchan set xchan_flags = %d  where xchan_hash = '%s' limit 1",
+			$r = q("update xchan set xchan_flags = %d  where xchan_hash = '%s'",
 				intval($new_flags),
 				dbesc($p[0]['channel_hash'])
 			);
@@ -281,10 +364,10 @@ function local_dir_update($uid,$force) {
 		}
 		else {
 			// they may have made it private
-			$r = q("delete from xprof where xprof_hash = '%s' limit 1",
+			$r = q("delete from xprof where xprof_hash = '%s'",
 				dbesc($hash)
 			);
-			$r = q("delete from xtag where xtag_hash = '%s' limit 1",
+			$r = q("delete from xtag where xtag_hash = '%s'",
 				dbesc($hash)
 			);
 		}

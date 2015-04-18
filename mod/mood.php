@@ -7,10 +7,10 @@ require_once('include/items.php');
 
 function mood_init(&$a) {
 
-	if(! local_user())
+	if(! local_channel())
 		return;
 
-	$uid = local_user();
+	$uid = local_channel();
 	$channel = $a->get_channel();
 	$verb = notags(trim($_GET['verb']));
 	
@@ -61,10 +61,9 @@ function mood_init(&$a) {
 	$mid = item_message_id();
 
 	$action = sprintf( t('%1$s is %2$s','mood'), '[zrl=' . $poster['xchan_url'] . ']' . $poster['xchan_name'] . '[/zrl]' , $verbs[$verb]); 
-	$item_flags = ITEM_WALL|ITEM_ORIGIN|ITEM_UNSEEN;
+	$item_flags = ITEM_WALL|ITEM_ORIGIN;
 	if(! $parent_mid)
 		$item_flags |= ITEM_THREAD_TOP;
-
 
 	$arr = array();
 
@@ -108,7 +107,7 @@ function mood_init(&$a) {
 
 function mood_content(&$a) {
 
-	if(! local_user()) {
+	if(! local_channel()) {
 		notice( t('Permission denied.') . EOL);
 		return;
 	}

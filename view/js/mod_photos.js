@@ -2,16 +2,11 @@
 var ispublic = aStr['everybody'];
 
 $(document).ready(function() {
-
-	$("a#photos-upload-perms-menu").colorbox({
-		'inline' : true, 
-		'transition' : 'elastic' 
-	});
-
-	$("a#settings-default-perms-menu").colorbox({ 
-		'inline' : true, 
-		'transition' : 'elastic' 
-	});
+	$(document).ready(function() { 
+		$("#photo-edit-newtag").contact_autocomplete(baseurl + '/acl', 'p', false, function(data) {
+			$("#photo-edit-newtag").val('@' + data.name);
+		});
+	}); 
 
 	$('#contact_allow, #contact_deny, #group_allow, #group_deny').change(function() {
 		var selstr;

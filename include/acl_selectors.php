@@ -15,7 +15,7 @@ function group_select($selname,$selclass,$preselected = false,$size = 4) {
 	$o .= "<select name=\"{$selname}[]\" id=\"$selclass\" class=\"$selclass\" multiple=\"multiple\" size=\"$size\" >\r\n";
 
 	$r = q("SELECT * FROM `groups` WHERE `deleted` = 0 AND `uid` = %d ORDER BY `name` ASC",
-		intval(local_user())
+		intval(local_channel())
 	);
 
 
@@ -119,7 +119,7 @@ function contact_selector($selname, $selclass, $preselected = false, $options) {
 		WHERE `uid` = %d AND `self` = 0 AND `blocked` = 0 AND `pending` = 0 AND `archive` = 0 AND `notify` != ''
 		$sql_extra
 		ORDER BY `name` ASC ",
-		intval(local_user())
+		intval(local_channel())
 	);
 
 
@@ -171,11 +171,11 @@ function contact_select($selname, $selclass, $preselected = false, $size = 4, $p
 		$o .= "<select name=\"{$selname}[]\" id=\"$selclass\" class=\"$selclass\" multiple=\"multiple\" size=\"$size\" $tabindex >\r\n";
 
 	$r = q("SELECT abook_id, xchan_name, xchan_url, xchan_photo_s from abook left join xchan on abook_xchan = xchan_hash
-		where abook_flags = 0 or not ( abook_flags & %d ) and abook_channel = %d
+		where abook_flags = 0 or not ( abook_flags & %d )>0 and abook_channel = %d
 		$sql_extra
 		ORDER BY xchan_name ASC ",
 		intval(ABOOK_FLAG_SELF),
-		intval(local_user())
+		intval(local_channel())
 	);
 
 
@@ -248,8 +248,7 @@ function populate_acl($defaults = null,$show_jotnets = true) {
 		'$aclModalTitle' => t('Permissions'),
 		'$aclModalDismiss' => t('Close')
 	));
-	
-	
+
 	return $o;
 
 }

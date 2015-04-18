@@ -116,19 +116,10 @@ function diaspora_mention_callback($matches) {
 function diaspora2bb($s,$use_zrl = false) {
 
 
+	$s = str_replace("&#xD;","\r",$s);
+	$s = str_replace("&#xD;\n&gt;","",$s);
+
 	$s = html_entity_decode($s,ENT_COMPAT,'UTF-8');
-
-	// Too many new lines. So deactivated the following line
-	// $s = str_replace("\r","\n",$s);
-	// Simply remove cr.
-	$s = str_replace("\r","",$s);
-
-	// <br/> is invalid. Replace it with the valid expression
-	$s = str_replace("<br/>","<br />",$s);
-	$s = str_replace("\n","<br />",$s);
-
-
-//	$s = preg_replace('/\@\{(.+?)\; (.+?)\@(.+?)\}/','@[url=https://$3/u/$2]$1[/url]',$s);
 
 	// first try plustags
 
@@ -141,16 +132,13 @@ function diaspora2bb($s,$use_zrl = false) {
 	// This seems to work
 	$s = preg_replace('/\#([^\s\#])/','&#35;$1',$s);
 
-	$s = preg_replace_callback('/\[share(.*?)\]/ism','share_shield',$s);
-
 	$s = Markdown($s);
 
+	$s = str_replace("\r","",$s);
+
 	$s = str_replace('&#35;','#',$s);
-// we seem to have double linebreaks
-//	$s = str_replace("\n",'<br />',$s);
 
 	$s = html2bbcode($s);
-//	$s = str_replace('&#42;','*',$s);
 
 	// protect the recycle symbol from turning into a tag, but without unescaping angles and naked ampersands
 	$s = str_replace('&#x2672;',html_entity_decode('&#x2672;',ENT_QUOTES,'UTF-8'),$s);
@@ -172,10 +160,6 @@ function diaspora2bb($s,$use_zrl = false) {
 	$s = bb_tag_preg_replace("/\[url\=https?:\/\/vimeo.com\/([0-9]+)\](.*?)\[\/url\]/ism",'[vimeo]$1[/vimeo]','url',$s);
 	// remove duplicate adjacent code tags
 	$s = preg_replace("/(\[code\])+(.*?)(\[\/code\])+/ism","[code]$2[/code]", $s);
-
-
-	$s = preg_replace_callback('/\[share(.*?)\]/ism','share_unshield',$s);
-
 
 	// Don't show link to full picture (until it is fixed)
 	$s = scale_external_images($s, false);
@@ -263,8 +247,19 @@ function bb2dmention_callback($match) {
 
 function bb2diaspora_itemwallwall(&$item) {
 
+	$author_exists = true;
+	if(! array_key_exists('author',$item)) {
+		$author_exists = false;
+		logger('bb2diaspora_itemwallwall: no author');
+		$r = q("select * from xchan where xchan_hash = '%s' limit 1",
+			dbesc($item['author_xchan'])
+		);
+		if($r)
+			$item['author'] = $r[0];
+	}
+
 	if(($item['mid'] == $item['parent_mid']) && ($item['author_xchan'] != $item['owner_xchan']) && (is_array($item['author']))) {
-		logger('bb2diaspora_itemwallwall: author: ' . print_r($item['author'],true), LOGGER_DEBUG);
+		logger('bb2diaspora_itemwallwall: author: ' . print_r($item['author'],true), LOGGER_DATA);
 	}
 
 	if(($item['mid'] == $item['parent_mid']) && ($item['author_xchan'] != $item['owner_xchan']) && (is_array($item['author'])) && $item['author']['xchan_url'] && $item['author']['xchan_name'] && $item['author']['xchan_photo_m']) {
@@ -275,12 +270,18 @@ function bb2diaspora_itemwallwall(&$item) {
 			. '[url=' . $item['author']['xchan_url'] . ']' . $item['author']['xchan_name'] . '[/url]' . "\n\n" 
 			. $item['body'];
 	}
+
+	// $item['author'] might cause a surprise further down the line if it wasn't expected to be here.
+ 
+	if(! $author_exists)
+		$unset($item['author']);
+
 }
 
 
-function bb2diaspora_itembody($item) {
+function bb2diaspora_itembody($item,$force_update = false) {
 
-	if($item['diaspora_meta']) {
+	if(($item['diaspora_meta']) && (! $force_update)) {
 		$diaspora_meta = json_decode($item['diaspora_meta'],true);
 		if($diaspora_meta) {
 			if(array_key_exists('iv',$diaspora_meta)) {
@@ -294,8 +295,6 @@ function bb2diaspora_itembody($item) {
 				logger('bb2diaspora_itembody: cached ');
 				$newitem = $item;
 				$newitem['body'] = $meta['body'];
-// this won't work - the post is now in markdown
-//				bb2diaspora_itemwallwall($newitem);
 				return $newitem['body'];
 			}
 		}
@@ -305,13 +304,19 @@ function bb2diaspora_itembody($item) {
 
 	if(array_key_exists('item_flags',$item) && ($item['item_flags'] & ITEM_OBSCURED)) {
 		$key = get_config('system','prvkey');
-		$newitem['title'] = (($item['title']) ? crypto_unencapsulate(json_decode($item['title'],true),$key) : '');
-		$newitem['body']  = (($item['body'])  ? crypto_unencapsulate(json_decode($item['body'],true),$key) : '');
+		$b = json_decode($item['body'],true);
+		// if called from diaspora_process_outbound, this decoding has already been done.
+		// Everything else that calls us will not yet be decoded.
+		if($b && is_array($b) && array_key_exists('iv',$b)) {
+			$newitem['title'] = (($item['title']) ? crypto_unencapsulate(json_decode($item['title'],true),$key) : '');
+			$newitem['body']  = (($item['body'])  ? crypto_unencapsulate(json_decode($item['body'],true),$key) : '');
+		}
 	}
 
 	bb2diaspora_itemwallwall($newitem);
 
-	$body = preg_replace('/\#\^http/i', 'http', $newitem['body']);
+	$title = $newitem['title'];
+	$body  = preg_replace('/\#\^http/i', 'http', $newitem['body']);
 
 	// protect tags and mentions from hijacking
 
@@ -348,7 +353,7 @@ function bb2diaspora_itembody($item) {
 		}
 	}
 
-	logger('bb2diaspora_itembody : ' . $body);
+//	logger('bb2diaspora_itembody : ' . $body, LOGGER_DATA);
 
 	return html_entity_decode($body);
 
@@ -422,7 +427,7 @@ function format_event_diaspora($ev) {
 
 	$bd_format = t('l F d, Y \@ g:i A') ; // Friday January 18, 2011 @ 8 AM
 
-	$o = 'Friendica event notification:' . "\n";
+	$o = t('Redmatrix event notification:') . "\n";
 
 	$o .= '**' . (($ev['summary']) ? bb2diaspora($ev['summary']) : bb2diaspora($ev['desc'])) .  '**' . "\n";
 

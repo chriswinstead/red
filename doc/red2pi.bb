@@ -1,9 +1,5 @@
 [b]How to install the Red Matrix on a Raspberry Pi[/b]
 
-[zrl=[baseurl]/help/main] Back to the main page[/zrl]
-Last update 2014-02-22
-[hr]
-
 You just bought a Raspberry Pi and want to run the RED Matrix with your own domain name?
 
 Then this page is for you! You will:
@@ -13,6 +9,7 @@ Then this page is for you! You will:
 [*] Register a free domain (dynamic DNS) and use it for your RED hub
 [*] Install the RED Matrix
 [*] Keep your Raspberry Pi and your Redmatrix up-to-date
+[*] TODO Setting up SSL
 [*] TODO Running Friendica with SSL
 [*] TODO Make the webserver less vulnarable to attacks
 [/list]
@@ -203,7 +200,7 @@ And add the following contains in it replacing the actual values:
 --background
 --dyndns_system default@freedns.afraid.org
 --syslog
-[/code]
+ [/code]
 
 
 [b]Step 5[/b]
@@ -306,7 +303,7 @@ Set up a cron job to run the poller once every 15 minutes in order to perform ba
 - pi@pi /var/www $ which php
 Make sure you are in the document root directory of the webserver
 - pi@pi /var/www $ cd /var/www/
-Try to execute the poller in oder to make sure it works
+Try to execute the poller in order to make sure it works
 - pi@pi /var/www $ /usr/bin/php include/poller.php
 Create the cronjob
 - pi@pi /var/www $ crontab -e
@@ -342,4 +339,4 @@ Save and exit.
 Follow the instructions here:
 [url=https://github.com/friendica/friendica/wiki/Running-Friendica-with-SSL]https://github.com/friendica/friendica/wiki/Running-Friendica-with-SSL[/url]
 
-Return to the [zrl=[baseurl]/help/main]Main documentation page[/zrl]
+#include doc/macros/main_footer.bb;
