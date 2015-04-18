@@ -168,10 +168,6 @@ class Item extends BaseObject {
   
 		$responses = get_responses($conv_responses,$response_verbs,$this,$item);
 
-
-
-		$like_button_label = tt('Like','Likes',$like_count,'noun');
-
 		$like_count = ((x($conv_responses['like'],$item['mid'])) ? $conv_responses['like'][$item['mid']] : '');
 		$like_list = ((x($conv_responses['like'],$item['mid'])) ? $conv_responses['like'][$item['mid'] . '-l'] : '');
 		if (count($like_list) > MAX_LIKERS) {
@@ -676,7 +672,7 @@ class Item extends BaseObject {
 			'$edquote' => t('Quote'),
 			'$edcode' => t('Code'),
 			'$edimg' => t('Image'),
-			'$edurl' => t('Link'),
+			'$edurl' => t('Insert Link'),
 			'$edvideo' => t('Video'),
 			'$preview' => t('Preview'), // ((feature_enabled($conv->get_profile_owner(),'preview')) ? t('Preview') : ''),
 			'$indent' => $indent,

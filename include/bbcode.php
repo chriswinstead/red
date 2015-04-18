@@ -469,10 +469,10 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 
 	// Perform URL Search
 
-	$urlchars = '[a-zA-Z0-9\:\/\-\?\&\;\.\=\@\_\~\#\%\$\!\+\,]';
+	$urlchars = '[a-zA-Z0-9\:\/\-\?\&\;\.\=\@\_\~\#\%\$\!\+\,\@]';
 
 	if (strpos($Text,'http') !== false) {
-		$Text = preg_replace("/([^\]\='".'"'."]|^)(https?\:\/\/$urlchars+)/ism", '$1<a href="$2" >$2</a>', $Text);
+		$Text = preg_replace("/([^\]\='".'"'."\/]|^|\#\^)(https?\:\/\/$urlchars+)/ism", '$1<a href="$2" >$2</a>', $Text);
 	}
 
 	if (strpos($Text,'[/qr]') !== false) {
@@ -582,9 +582,14 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 	if (strpos($Text,'[h6]') !== false) {
 		$Text = preg_replace("(\[h6\](.*?)\[\/h6\])ism",'<h6>$1</h6>',$Text);
 	}
-	// Check for table of content
+	// Check for table of content without params
 	if (strpos($Text,'[toc]') !== false) {
-		$Text = preg_replace("/\[toc\]/ism",'<ul id="toc"></ul>',$Text);
+		$Text = preg_replace("/\[toc\]/ism",'<ul id="toc"></ul>',$Text);		
+	}
+	// Check for table of content with params
+	if (strpos($Text,'[toc') !== false) {
+		$Text = preg_replace("/\[toc([^\]]+?)\]/ism",'<ul$1></ul>',$Text);
+		
 	}
 	// Check for centered text
 	if (strpos($Text,'[/center]') !== false) {	
@@ -662,6 +667,17 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 		$Text = preg_replace("/\[spoiler=[\"\']*(.*?)[\"\']*\](.*?)\[\/spoiler\]/ism",
 			"<br /><strong class=".'"spoiler"'.">" . $t_wrote . "</strong><blockquote class=".'"spoiler"'.">$2</blockquote>",
 			$Text);
+
+
+	$endlessloop = 0;
+	while ((strpos($Text, "[/open]")!== false)  and (strpos($Text, "[open=") !== false) and (++$endlessloop < 20)) {
+		$rnd = mt_rand();
+		$Text = preg_replace("/\[open=(.*?)\](.*?)\[\/open\]/ism",
+			"<br /><div onclick=\"openClose('opendiv-" . $rnd . "');return false;\" class=\"fakelink\">$1</div><div id=\"opendiv-" . $rnd . "\" style=\"display: none;\">$2</div>",
+			$Text);
+	}
+
+
 
 	// Declare the format for [quote] layout
 	$QuoteLayout = '<blockquote>$1</blockquote>';
@@ -751,10 +767,16 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 
 	// html5 video and audio
 	if (strpos($Text,'[/video]') !== false) {	
-		$Text = preg_replace_callback("/\[video\](.*?\.(ogg|ogv|oga|ogm|webm|mp4))\[\/video\]/ism", 'tryzrlvideo', $Text);
+		$Text = preg_replace_callback("/\[video\](.*?\.(ogg|ogv|oga|ogm|webm|mp4|mpeg|mpg))\[\/video\]/ism", 'tryzrlvideo', $Text);
 	}
 	if (strpos($Text,'[/audio]') !== false) {		
 		$Text = preg_replace_callback("/\[audio\](.*?\.(ogg|ogv|oga|ogm|webm|mp4|mp3|opus))\[\/audio\]/ism", 'tryzrlaudio', $Text);
+	}
+	if (strpos($Text,'[/zvideo]') !== false) {	
+		$Text = preg_replace_callback("/\[zvideo\](.*?\.(ogg|ogv|oga|ogm|webm|mp4|mpeg|mpg))\[\/zvideo\]/ism", 'tryzrlvideo', $Text);
+	}
+	if (strpos($Text,'[/zaudio]') !== false) {		
+		$Text = preg_replace_callback("/\[zaudio\](.*?\.(ogg|ogv|oga|ogm|webm|mp4|mp3|opus))\[\/zaudio\]/ism", 'tryzrlaudio', $Text);
 	}
 
 	// Try to Oembed
@@ -766,6 +788,13 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 		if (strpos($Text,'[/audio]') !== false) {
 			$Text = preg_replace_callback("/\[audio\](.*?)\[\/audio\]/ism", 'tryoembed', $Text);
 		}
+
+		if (strpos($Text,'[/zvideo]') !== false) {			
+			$Text = preg_replace_callback("/\[zvideo\](.*?)\[\/zvideo\]/ism", 'tryoembed', $Text);
+		}
+		if (strpos($Text,'[/zaudio]') !== false) {
+			$Text = preg_replace_callback("/\[zaudio\](.*?)\[\/zaudio\]/ism", 'tryoembed', $Text);
+		}
 	}
 
 	// if video couldn't be embedded, link to it instead.
@@ -774,6 +803,13 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 	}
 	if (strpos($Text,'[/audio]') !== false) {
 		$Text = preg_replace("/\[audio\](.*?)\[\/audio\]/", '<a href="$1">$1</a>', $Text);
+	}
+
+	if (strpos($Text,'[/zvideo]') !== false) {
+		$Text = preg_replace("/\[zvideo\](.*?)\[\/zvideo\]/", '<a class="zid" href="$1">$1</a>', $Text);
+	}
+	if (strpos($Text,'[/zaudio]') !== false) {
+		$Text = preg_replace("/\[zaudio\](.*?)\[\/zaudio\]/", '<a class="zid" href="$1">$1</a>', $Text);
 	}
 
 
@@ -859,7 +895,7 @@ function bbcode($Text,$preserve_nl = false, $tryoembed = true) {
 	// fix any escaped ampersands that may have been converted into links
 	$Text = preg_replace("/\<(.*?)(src|href)=(.*?)\&amp\;(.*?)\>/ism",'<$1$2=$3&$4>',$Text);
 
-	$Text = preg_replace("/\<(.*?)(src|href)=\"[^hfm#](.*?)\>/ism",'<$1$2="">',$Text);
+	$Text = preg_replace("/\<(.*?)(src|href)=\"[^zhfm#](.*?)\>/ism",'<$1$2="">',$Text);
 
 	$Text = bb_replace_images($Text,$saved_images);
 

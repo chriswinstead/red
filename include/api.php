@@ -622,10 +622,14 @@ require_once('include/items.php');
 
 
 	function api_red_xchan(&$a,$type) {
+		logger('api_xchan');
+
 		if(api_user() === false)
 			return false;
+		logger('api_xchan');
 		require_once('include/hubloc.php');
-		if($_SERVER['request_method'] === 'POST') {
+
+		if($_SERVER['REQUEST_METHOD'] === 'POST') {
 			$r = xchan_store($_REQUEST);
 		}
 		$r = xchan_fetch($_REQUEST);
@@ -663,8 +667,8 @@ require_once('include/items.php');
         $a->argv[1] = $user_info['screen_name'];
 		
 		$_REQUEST['silent']='1'; //tell wall_upload function to return img info instead of echo
-		require_once('mod/wall_upload.php');
-		$posted = wall_upload_post($a);
+		require_once('mod/wall_attach.php');
+		$posted = wall_attach_post($a);
                 
 		//now that we have the img url in bbcode we can add it to the status and insert the wall item.
 		$_REQUEST['body']=$txt."\n\n".$posted;
@@ -726,6 +730,16 @@ require_once('include/items.php');
 			$_REQUEST['parent'] = $parent;
 		else
 			$_REQUEST['parent_mid'] = $parent;
+
+		if($_REQUEST['namespace'] && $parent) {
+			$x = q("select iid from item_id where service = '%s' and sid = '%s' limit 1",
+				dbesc($_REQUEST['namespace']),
+				dbesc($parent)
+			);
+			if($x) {
+				$_REQUEST['parent'] = $x[0]['iid'];
+			}
+		}
 
 		if(requestdata('lat') && requestdata('long'))
 			$_REQUEST['coord'] = sprintf("%s %s",requestdata('lat'),requestdata('long'));

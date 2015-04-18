@@ -254,7 +254,7 @@ function group_side($every="connections",$each="group",$edit = false, $group_id 
 		'text' 	=> t('All Channels'),
 		'id' => 0,
 		'selected' => (($group_id == 0) ? 'group-selected' : ''),
-		'href' 	=> $every,
+		'href' 	=> $every . (($every === 'network') ? '?f=&gid=0' : ''),
 	);
 
 
@@ -297,7 +297,7 @@ function group_side($every="connections",$each="group",$edit = false, $group_id 
 	$o = replace_macros($tpl, array(
 		'$title'		=> t('Collections'),
 		'$edittext'     => t('Edit collection'),
-		'$createtext' 	=> t('Create a new collection'),
+		'$createtext' 	=> t('Add new collection'),
 		'$ungrouped'    => (($every === 'contacts') ? t('Channels not in any collection') : ''),
 		'$groups'		=> $groups,
 		'$add'			=> t('add'),

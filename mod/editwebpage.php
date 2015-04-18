@@ -164,14 +164,21 @@ function editwebpage_content(&$a) {
 
 	$rp = 'webpages/' . $which;
 
+logger('canwrite: ' . (perm_is_allowed($owner, get_observer_hash(), 'post_photos') || perm_is_allowed($owner, get_observer_hash(), 'write_storage')));
 	$o .= replace_macros($tpl,array(
 		'$return_path' => $rp,
 		'$webpage' => ITEM_WEBPAGE,
 		'$placeholdpagetitle' => t('Page link title'),
 		'$pagetitle' => $page_title,
+		'$writefiles' => (perm_is_allowed($owner, get_observer_hash(), 'post_photos') || perm_is_allowed($owner, get_observer_hash(), 'write_storage')),
 
 		'$action' => 'item',
 		'$share' => t('Edit'),
+		'$bold' => t('Bold'),
+		'$italic' => t('Italic'),
+		'$underline' => t('Underline'),
+		'$quote' => t('Quote'),
+		'$code' => t('Code'),
 		'$upload' => t('Upload photo'),
 		'$attach' => t('Attach file'),
 		'$weblink' => t('Insert web link'),
@@ -202,7 +209,7 @@ function editwebpage_content(&$a) {
 		'lockstate' => (((strlen($itm[0]['allow_cid'])) || (strlen($itm[0]['allow_gid'])) || (strlen($itm[0]['deny_cid'])) || (strlen($itm[0]['deny_gid']))) ? 'lock' : 'unlock'),
 		'$bang' => '',
 		'$profile_uid' => (intval($owner)),
-		'$preview' => true, // ((feature_enabled($uid,'preview')) ? t('Preview') : ''),
+		'$preview' => t('Preview'),
 		'$jotplugins' => $jotplugins,
 		'$sourceapp' => $a->sourcename,
 		'$defexpire' => '',

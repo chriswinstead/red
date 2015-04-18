@@ -7,6 +7,7 @@ require_once('include/conversation.php');
 function home_init(&$a) {
 
 	$ret = array();
+
 	call_hooks('home_init',$ret);
 
 	$splash = ((argc() > 1 && argv(1) === 'splash') ? true : false);
@@ -34,6 +35,10 @@ function home_init(&$a) {
 function home_content(&$a, $update = 0, $load = false) {
 
 	$o = '';
+
+
+	if($load)
+		$_SESSION['loadtime'] = datetime_convert();
 
 	if(x($_SESSION,'theme'))
 		unset($_SESSION['theme']);
@@ -83,6 +88,20 @@ function home_content(&$a, $update = 0, $load = false) {
 		if($r) {
 			xchan_query($r);
 			$r = fetch_post_tags($r,true);
+
+			if($r[0]['layout_mid']) {
+				$l = q("select body from item where mid = '%s' and uid = %d limit 1",
+					dbesc($r[0]['layout_mid']),
+					intval($u[0]['channel_id'])
+				);
+
+				if($l) {
+					require_once('include/comanche.php');
+					comanche_parser($a,$l[0]['body']);
+					$a->pdl = $l[0]['body'];
+				}
+			}
+
 			$a->profile = array('profile_uid' => $u[0]['channel_id']);
 			$a->profile_uid = $u[0]['channel_id'];
 			$o .= prepare_page($r[0]);
@@ -180,7 +199,7 @@ function home_content(&$a, $update = 0, $load = false) {
 			$simple_update = (($update) ? " and item.item_unseen = 1 " : '');
 
 			if($update && $_SESSION['loadtime'])
-				$simple_update .= " and item.changed > '" . datetime_convert('UTC','UTC',$_SESSION['loadtime']) . "' ";
+				$simple_update = " AND (( item_unseen = 1 AND item.changed > '" . datetime_convert('UTC','UTC',$_SESSION['loadtime']) . "' )  OR item.changed > '" . datetime_convert('UTC','UTC',$_SESSION['loadtime']) . "' ) ";
 			if($load)
 				$simple_update = '';
 
@@ -191,8 +210,6 @@ function home_content(&$a, $update = 0, $load = false) {
 				$ordering = "commented";
 
 				if($load) {
-
-					$_SESSION['loadtime'] = datetime_convert();
 
 					// Fetch a page full of parent items for this page
 
@@ -208,7 +225,18 @@ function home_content(&$a, $update = 0, $load = false) {
 
 
 				}
+				elseif($update) {
 
+					$r = q("SELECT distinct item.id AS item_id, $ordering FROM item
+						left join abook on item.author_xchan = abook.abook_xchan
+						WHERE true $uids AND item.item_restrict = 0
+						AND item.parent = item.id $simple_update
+						and ((abook.abook_flags & %d) = 0 or abook.abook_flags is null)
+						$sql_extra3 $sql_extra $sql_nets",
+						intval(ABOOK_FLAG_BLOCKED)
+					);
+					$_SESSION['loadtime'] = datetime_convert();
+				}
 				// Then fetch all the children of the parents that are on this page
 				$parents_str = '';
 				$update_unseen = '';
